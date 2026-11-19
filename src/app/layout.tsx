@@ -4,6 +4,7 @@ import { ThemeProvider } from "@/components/theme/theme-provider";
 import { ThemedToaster } from "@/components/theme/themed-toaster";
 import { MockProvider } from "@/providers/mock-provider";
 import { QueryProvider } from "@/providers/query-provider";
+import { AuthProvider } from "@/providers/auth-provider";
 import { geistMono, geistSans } from "@/styles/font";
 
 import "./globals.css";
@@ -13,11 +14,7 @@ export const metadata: Metadata = {
   description: "AI-powered team workflow and performance management.",
 };
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html
       lang="en"
@@ -33,7 +30,7 @@ export default function RootLayout({
         >
           <MockProvider enabled={process.env.NEXT_PUBLIC_ENABLE_MSW === "true"}>
             <QueryProvider>
-              {children}
+              <AuthProvider>{children}</AuthProvider>
               <ThemedToaster />
             </QueryProvider>
           </MockProvider>
