@@ -5,10 +5,13 @@ import { roleHandlers } from "./roles";
 import { projectHandlers } from "./projects";
 import { taskHandlers } from "./tasks";
 
+import { taskEvidenceHandlers } from "./task-evidences";
+
 export const handlers: RequestHandler[] = [
   ...authHandlers,
   ...userHandlers,
   ...roleHandlers,
   ...projectHandlers,
   ...taskHandlers,
+  ...taskEvidenceHandlers,
 ];

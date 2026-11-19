@@ -7,8 +7,10 @@ import {
   createTaskChecklistSchema,
   updateTaskChecklistSchema,
   orderTaskChecklistsSchema,
+  blockTaskSchema,
+  emptyTaskActionSchema,
 } from "@/features/tasks/task.schema";
-import { isEditableTask } from "@/features/tasks/task.constants";
+import { isEditableTask, taskWorkflowTransitions } from "@/features/tasks/task.constants";
 import { getMockUser } from "../data/auth-store";
 import { findMockProject, canViewMockProject } from "../data/projects";
 import { findMockUser } from "../data/users";
@@ -23,15 +25,17 @@ import {
   toPublicTask,
   toPublicTaskDetail,
   updateMockTask,
+  transitionMockTask,
 } from "../data/tasks";
+import type { TaskWorkflowAction } from "@/interface/task.interface";
 import type { AuthUser } from "@/interface/auth.interface";
 import { requireMockAdmin } from "./authorization";
 
-function failure(message: string, status: number) {
+export function failure(message: string, status: number) {
   return HttpResponse.json({ message }, { status });
 }
 
-function requireTask(request: Request, id: string, writing = false) {
+export function requireTask(request: Request, id: string, writing = false) {
   const user = getMockUser(request);
   if (!user) return { task: null, user: null, error: failure("Unauthorized", 401) } as const;
   const task = findMockTask(id);
@@ -60,13 +64,50 @@ function validateAssignment(projectId: string, assigneeId: string, actor: AuthUs
   return null;
 }
 
-function taskResponse(task: ReturnType<typeof updateMockTask>, message: string, status = 200) {
+export function taskResponse(
+  task: ReturnType<typeof updateMockTask>,
+  message: string,
+  status = 200,
+) {
   return task
     ? HttpResponse.json({ message, data: toPublicTaskDetail(task) }, { status })
     : failure("Task not found", 404);
 }
 
+function workflowHandler(action: TaskWorkflowAction) {
+  return http.post(`*/api/tasks/:id/${action}`, async ({ request, params }) => {
+    const raw = await request.json().catch(() => null);
+    const id = String(params.id);
+    const result = requireTask(request, id, true);
+    if (result.error) return result.error;
+    const parsed =
+      action === "block" ? blockTaskSchema.safeParse(raw) : emptyTaskActionSchema.safeParse(raw);
+    if (!parsed.success) return failure(parsed.error.issues[0].message, 400);
+    if (result.task.task_status !== taskWorkflowTransitions[action].from)
+      return failure("Invalid task status transition", 409);
+    if (action === "submit" && !result.task.evidences.length)
+      return failure("Add at least one evidence before submitting", 409);
+    const reason = "reason" in parsed.data ? String(parsed.data.reason) : null;
+    const messages: Record<TaskWorkflowAction, string> = {
+      start: "Task started",
+      block: "Task blocked",
+      resume: "Task resumed",
+      submit: "Task submitted for approval",
+    };
+    return taskResponse(transitionMockTask(id, action, result.user.id, reason), messages[action]);
+  });
+}
+
 export const taskHandlers = [
+  workflowHandler("start"),
+  workflowHandler("block"),
+  workflowHandler("resume"),
+  workflowHandler("submit"),
+  http.get("*/api/tasks/:id/status-histories", ({ request, params }) => {
+    const result = requireTask(request, String(params.id));
+    if (result.error) return result.error;
+    return HttpResponse.json({ data: result.task.status_histories });
+  }),
   http.get("*/api/tasks", ({ request }) => {
     const user = getMockUser(request);
     if (!user) return failure("Unauthorized", 401);

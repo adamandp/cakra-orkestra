@@ -13,7 +13,15 @@ import {
   useOrderTaskChecklists,
 } from "../task.mutation";
 
-export function TaskChecklistPanel({ task, editable }: { task: TaskDetail; editable: boolean }) {
+export function TaskChecklistPanel({
+  task,
+  editable,
+  busy = false,
+}: {
+  task: TaskDetail;
+  editable: boolean;
+  busy?: boolean;
+}) {
   const add = useCreateTaskChecklist(task.id);
   const update = useUpdateTaskChecklist(task.id);
   const remove = useDeleteTaskChecklist(task.id);
@@ -25,7 +33,7 @@ export function TaskChecklistPanel({ task, editable }: { task: TaskDetail; edita
   const items = [...task.checklists].sort((a, b) => a.sort_order - b.sort_order);
   const completed = items.filter((item) => item.is_completed).length;
   const pending = add.isPending || update.isPending || remove.isPending || order.isPending;
-  const disabled = pending || !editable;
+  const disabled = busy || pending || !editable;
 
   async function run(action: () => Promise<unknown>) {
     setError(null);
@@ -92,7 +100,7 @@ export function TaskChecklistPanel({ task, editable }: { task: TaskDetail; edita
                     type="button"
                     variant="outline"
                     size="sm"
-                    disabled={pending}
+                    disabled={busy || pending}
                     onClick={() => setEditing(null)}
                   >
                     Cancel

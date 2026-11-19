@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { TASK_EVIDENCE_MAX_BYTES } from "./task.constants";
 
 export const taskStatusSchema = z.enum(["OPEN", "BLOCKED", "PROGRESS", "PENDING", "DONE"]);
 export const taskTypeSchema = z.enum(["REGULAR", "OVERTIME"]);
@@ -65,3 +66,58 @@ export const taskFormSchema = taskFields.extend({
   checklists: z.array(createTaskChecklistSchema),
 });
 export type TaskFormValues = z.infer<typeof taskFormSchema>;
+
+const evidenceTitle = z.string().trim().min(1).max(255).optional();
+export const blockTaskSchema = z
+  .object({ reason: z.string().trim().min(1, "Blocker reason is required").max(2000) })
+  .strict();
+export const emptyTaskActionSchema = z.object({}).strict();
+export const createTaskLinkSchema = z
+  .object({
+    title: evidenceTitle,
+    url: z
+      .string()
+      .trim()
+      .max(2048)
+      .url()
+      .refine((value) => {
+        try {
+          return ["http:", "https:"].includes(new URL(value).protocol);
+        } catch {
+          return false;
+        }
+      }, "Use an HTTP or HTTPS URL"),
+  })
+  .strict();
+export const presignTaskEvidenceSchema = z
+  .object({
+    file_name: z
+      .string()
+      .min(1)
+      .max(255)
+      .refine(
+        (name) =>
+          !name.includes("/") &&
+          !name.includes("\\") &&
+          !Array.from(name).some((char) => char.charCodeAt(0) < 32 || char.charCodeAt(0) === 127) &&
+          Boolean(name.trim()),
+        "Invalid file name",
+      ),
+    mime_type: z
+      .string()
+      .min(1)
+      .max(100)
+      .regex(/^[a-zA-Z0-9!#$&^_.+-]+\/[a-zA-Z0-9!#$&^_.+-]+$/),
+    file_size: z
+      .number()
+      .int()
+      .positive()
+      .max(TASK_EVIDENCE_MAX_BYTES, "File must be 20 MiB or smaller"),
+  })
+  .strict();
+export const confirmTaskEvidenceSchema = z
+  .object({
+    object_key: z.string().min(1).max(512),
+    title: evidenceTitle,
+  })
+  .strict();

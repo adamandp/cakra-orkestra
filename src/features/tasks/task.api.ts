@@ -12,6 +12,13 @@ import type {
   CreateTaskChecklistInput,
   UpdateTaskChecklistInput,
   OrderTaskChecklistsInput,
+  BlockTaskInput,
+  TaskEvidence,
+  TaskStatusHistory,
+  CreateTaskLinkInput,
+  PresignTaskEvidenceInput,
+  PresignTaskEvidenceResponse,
+  ConfirmTaskEvidenceInput,
 } from "@/interface/task.interface";
 
 export async function getTasks(params: TaskListParams, signal?: AbortSignal) {
@@ -86,4 +93,94 @@ export function getTaskError(error: unknown): string {
     return error.response?.data?.message || "Unable to reach the server. Please try again.";
   }
   return "Something went wrong. Please try again.";
+}
+
+export async function startTask(id: string) {
+  const { data } = await axiosInstance.post<WebResponse<TaskDetail>>(`/tasks/${id}/start`, {});
+  return data.data;
+}
+export async function blockTask(id: string, input: BlockTaskInput) {
+  const { data } = await axiosInstance.post<WebResponse<TaskDetail>>(`/tasks/${id}/block`, input);
+  return data.data;
+}
+export async function resumeTask(id: string) {
+  const { data } = await axiosInstance.post<WebResponse<TaskDetail>>(`/tasks/${id}/resume`, {});
+  return data.data;
+}
+export async function submitTask(id: string) {
+  const { data } = await axiosInstance.post<WebResponse<TaskDetail>>(`/tasks/${id}/submit`, {});
+  return data.data;
+}
+export async function getTaskStatusHistories(id: string, signal?: AbortSignal) {
+  const { data } = await axiosInstance.get<WebResponse<TaskStatusHistory[]>>(
+    `/tasks/${id}/status-histories`,
+    { signal },
+  );
+  return data.data;
+}
+export async function getTaskEvidences(id: string, signal?: AbortSignal) {
+  const { data } = await axiosInstance.get<WebResponse<TaskEvidence[]>>(`/tasks/${id}/evidences`, {
+    signal,
+  });
+  return data.data;
+}
+export async function createTaskLink(id: string, input: CreateTaskLinkInput) {
+  const { data } = await axiosInstance.post<WebResponse<TaskDetail>>(
+    `/tasks/${id}/evidences/link`,
+    input,
+  );
+  return data.data;
+}
+export async function presignTaskEvidence(id: string, input: PresignTaskEvidenceInput) {
+  const { data } = await axiosInstance.post<WebResponse<PresignTaskEvidenceResponse>>(
+    `/tasks/${id}/evidences/presign`,
+    input,
+  );
+  return data.data;
+}
+export async function confirmTaskEvidence(id: string, input: ConfirmTaskEvidenceInput) {
+  const { data } = await axiosInstance.post<WebResponse<TaskDetail>>(
+    `/tasks/${id}/evidences/confirm`,
+    input,
+  );
+  return data.data;
+}
+export async function uploadTaskEvidence(id: string, file: File, title?: string) {
+  const mime = file.type || "application/octet-stream";
+  const presigned = await presignTaskEvidence(id, {
+    file_name: file.name,
+    mime_type: mime,
+    file_size: file.size,
+  });
+  // Use a separate HTTP client: never forward API access tokens to object storage.
+  await axios.put(presigned.upload_url, file, {
+    headers: { "Content-Type": mime, Authorization: null },
+    withCredentials: false,
+  });
+  return confirmTaskEvidence(id, { object_key: presigned.object_key, title });
+}
+export async function deleteTaskEvidence(id: string, evidenceId: string) {
+  const { data } = await axiosInstance.delete<WebResponse<TaskDetail>>(
+    `/tasks/${id}/evidences/${evidenceId}`,
+  );
+  return data.data;
+}
+export async function downloadTaskEvidence(id: string, evidenceId: string) {
+  try {
+    const { data } = await axiosInstance.get<Blob>(
+      `/tasks/${id}/evidences/${evidenceId}/download`,
+      { responseType: "blob" },
+    );
+    return data;
+  } catch (error) {
+    // Blob response mode also applies to error bodies. Restore the JSON message for existing error handling.
+    if (axios.isAxiosError(error) && error.response?.data instanceof Blob) {
+      try {
+        error.response.data = JSON.parse(await error.response.data.text());
+      } catch {
+        /* fallback */
+      }
+    }
+    throw error;
+  }
 }

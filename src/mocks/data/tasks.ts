@@ -7,7 +7,9 @@ import type {
   TaskChecklist,
   TaskDetail,
   TaskStatusHistory,
+  TaskWorkflowAction,
 } from "@/interface/task.interface";
+import { taskWorkflowTransitions } from "@/features/tasks/task.constants";
 import { findMockProject, canViewMockProject } from "./projects";
 import { findMockUser } from "./users";
 
@@ -21,7 +23,7 @@ const timestamp = "2026-11-19T00:00:00.000Z";
 export type MockTask = Omit<
   TaskDetail,
   "project" | "assignee" | "checklist_total" | "checklist_completed"
->;
+> & { retired_evidence_ids?: string[] };
 
 function makeChecklist(taskId: string, title: string, order: number, now: string): TaskChecklist {
   return {
@@ -215,12 +217,14 @@ export function toPublicTask(task: MockTask): Task {
     status_histories: _histories,
     evidences: _evidences,
     ai_results: _results,
+    retired_evidence_ids: _retiredEvidenceIds,
     ...fields
   } = task;
   // Explicitly omit child collections without returning internal user data.
   void _histories;
   void _evidences;
   void _results;
+  void _retiredEvidenceIds;
   return {
     ...fields,
     project: { id: project.id, code: project.code, name: project.name, status: project.status },
@@ -280,5 +284,33 @@ export function orderMockChecklists(
     const item = byId.get(id);
     if (!item) throw new Error("Invalid checklist order");
     return item.sort_order === sort_order ? item : { ...item, sort_order, updated_at: now };
+  });
+}
+
+// Call only after the handler has validated authorization and the transition.
+export function transitionMockTask(
+  id: string,
+  action: TaskWorkflowAction,
+  actorId: string,
+  reason: string | null = null,
+) {
+  return updateMockTask(id, (task, now) => {
+    const { to } = taskWorkflowTransitions[action];
+    const history: TaskStatusHistory = {
+      id: crypto.randomUUID(),
+      task_id: task.id,
+      previous_status: task.task_status,
+      current_status: to,
+      reason,
+      changed_by: actorId,
+      created_at: now,
+    };
+    return {
+      ...task,
+      task_status: to,
+      blocker_reason: action === "block" ? reason : null,
+      status_changed_at: now,
+      status_histories: [...task.status_histories, history],
+    };
   });
 }

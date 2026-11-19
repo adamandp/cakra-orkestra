@@ -138,3 +138,26 @@ export interface UpdateTaskChecklistInput {
 export interface OrderTaskChecklistsInput {
   item_ids: string[];
 }
+
+export type TaskWorkflowAction = "start" | "block" | "resume" | "submit";
+export interface BlockTaskInput {
+  reason: string;
+}
+export interface CreateTaskLinkInput {
+  title?: string;
+  url: string;
+}
+export interface PresignTaskEvidenceInput {
+  file_name: string;
+  mime_type: string;
+  file_size: number;
+}
+export interface PresignTaskEvidenceResponse {
+  upload_url: string;
+  object_key: string;
+  expires_at: string;
+}
+export interface ConfirmTaskEvidenceInput {
+  object_key: string;
+  title?: string;
+}

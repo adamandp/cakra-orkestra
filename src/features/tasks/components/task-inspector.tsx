@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useIsMutating } from "@tanstack/react-query";
 import { PencilIcon, Trash2Icon, UserRoundIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -13,12 +14,15 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import type { TaskDetail } from "@/interface/task.interface";
-import { useTask } from "../task.query";
+import { useTask, taskKeys } from "../task.query";
 import { useDeleteTask } from "../task.mutation";
 import { getTaskError } from "../task.api";
 import { isEditableTask, taskTypeLabels, taskCategoryLabels } from "../task.constants";
 import { TaskStatusBadge } from "./task-table";
 import { TaskChecklistPanel } from "./task-checklist";
+import { TaskWorkflow } from "./task-workflow";
+import { TaskEvidencePanel } from "./task-evidence";
+import { TaskStatusHistoryPanel } from "./task-status-history";
 
 export function TaskInspector({
   taskId,
@@ -40,6 +44,7 @@ export function TaskInspector({
   const query = useTask(taskId);
   const mutation = useDeleteTask(taskId);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const busy = useIsMutating({ mutationKey: taskKeys.mutations(taskId) }) > 0;
   const task = query.data;
   const editable = Boolean(
     task &&
@@ -60,7 +65,7 @@ export function TaskInspector({
     <Sheet
       open
       onOpenChange={(open) => {
-        if (!open && !mutation.isPending) onClose();
+        if (!open && !busy) onClose();
       }}
     >
       <SheetContent className="w-full border-l-2 border-border sm:max-w-lg">
@@ -128,21 +133,25 @@ export function TaskInspector({
               </section>
               {editable ? (
                 <div className="flex flex-wrap gap-2">
-                  <Button variant="outline" disabled={confirmDelete} onClick={() => onEdit(task)}>
+                  <Button
+                    variant="outline"
+                    disabled={busy || confirmDelete}
+                    onClick={() => onEdit(task)}
+                  >
                     <PencilIcon /> Edit task
                   </Button>
                   {isAdmin && (
                     <>
                       <Button
                         variant="outline"
-                        disabled={confirmDelete}
+                        disabled={busy || confirmDelete}
                         onClick={() => onReassign(task)}
                       >
                         <UserRoundIcon /> Reassign
                       </Button>
                       <Button
                         variant="destructive"
-                        disabled={confirmDelete}
+                        disabled={busy || confirmDelete}
                         onClick={() => setConfirmDelete(true)}
                       >
                         <Trash2Icon /> Delete
@@ -166,7 +175,7 @@ export function TaskInspector({
                   <div className="flex justify-end gap-2">
                     <Button
                       variant="outline"
-                      disabled={mutation.isPending}
+                      disabled={busy || mutation.isPending}
                       onClick={() => {
                         setConfirmDelete(false);
                         mutation.reset();
@@ -176,7 +185,7 @@ export function TaskInspector({
                     </Button>
                     <Button
                       variant="destructive"
-                      disabled={mutation.isPending}
+                      disabled={busy || mutation.isPending}
                       onClick={() => void confirm()}
                     >
                       {mutation.isPending ? "Deleting..." : "Confirm delete"}
@@ -184,12 +193,30 @@ export function TaskInspector({
                   </div>
                 </div>
               )}
-              <TaskChecklistPanel key={task.id} task={task} editable={editable && !confirmDelete} />
+              <TaskWorkflow
+                key={`${task.id}:${task.task_status}`}
+                task={task}
+                editable={editable && !confirmDelete}
+                busy={busy}
+              />
+              <TaskChecklistPanel
+                key={task.id}
+                task={task}
+                editable={editable && !confirmDelete}
+                busy={busy}
+              />
+              <TaskEvidencePanel
+                key={`evidence:${task.id}`}
+                task={task}
+                editable={editable && !confirmDelete}
+                busy={busy}
+              />
+              <TaskStatusHistoryPanel task={task} />
             </>
           )}
         </div>
         <div className="flex justify-end border-t p-4">
-          <Button variant="outline" disabled={mutation.isPending} onClick={onClose}>
+          <Button variant="outline" disabled={busy || mutation.isPending} onClick={onClose}>
             Close
           </Button>
         </div>
