@@ -6,6 +6,7 @@ import { projectHandlers } from "./projects";
 import { taskHandlers } from "./tasks";
 
 import { taskEvidenceHandlers } from "./task-evidences";
+import { changelogHandlers } from "./changelogs";
 
 export const handlers: RequestHandler[] = [
   ...authHandlers,
@@ -14,4 +15,5 @@ export const handlers: RequestHandler[] = [
   ...projectHandlers,
   ...taskHandlers,
   ...taskEvidenceHandlers,
+  ...changelogHandlers,
 ];

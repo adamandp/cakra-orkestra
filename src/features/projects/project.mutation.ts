@@ -15,6 +15,7 @@ import {
 } from "./project.api";
 import { projectKeys } from "./project.query";
 import { taskKeys } from "@/features/tasks/task.query";
+import { changelogKeys } from "@/features/changelogs/changelog.query";
 
 async function syncProject(queryClient: QueryClient, project: Project) {
   await Promise.all([
@@ -28,6 +29,7 @@ async function syncProject(queryClient: QueryClient, project: Project) {
     queryClient.invalidateQueries({ queryKey: projectKeys.detail(project.id) }),
     queryClient.invalidateQueries({ queryKey: projectKeys.members(project.id) }),
     queryClient.invalidateQueries({ queryKey: taskKeys.all }),
+    queryClient.invalidateQueries({ queryKey: changelogKeys.all }),
   ]);
 }
 

@@ -1,5 +1,5 @@
-import { PageHeader } from "@/components/shared/page-header";
+import { ChangelogManagement } from "@/features/changelogs/components/changelog-management";
 
 export default function ChangelogsPage() {
-  return <PageHeader title="Changelog" description="Document application releases and changes." />;
+  return <ChangelogManagement />;
 }
