@@ -1,5 +1,5 @@
-import { PageHeader } from "@/components/shared/page-header";
+import { ProjectManagement } from "@/features/projects/components/project-management";
 
 export default function ProjectsPage() {
-  return <PageHeader title="Projects" description="Organize projects and manage their members." />;
+  return <ProjectManagement />;
 }

@@ -1,5 +1,5 @@
-import { PageHeader } from "@/components/shared/page-header";
+import { TaskManagement } from "@/features/tasks/components/task-management";
 
 export default function TasksPage() {
-  return <PageHeader title="Manage Tasks" description="Create, organize, and manage your tasks." />;
+  return <TaskManagement />;
 }
