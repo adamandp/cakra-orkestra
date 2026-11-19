@@ -13,6 +13,7 @@ interface AuthContextValue {
   retry: () => void;
   login: (input: LoginCredentials) => Promise<void>;
   logout: () => Promise<void>;
+  syncProfile: (profile: AuthUser) => void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -70,9 +71,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }
 
+  function syncProfile(profile: AuthUser) {
+    setUser((current) => {
+      if (current?.id !== profile.id) return current;
+      return {
+        id: profile.id,
+        username: profile.username,
+        name: profile.name,
+        avatar_url: profile.avatar_url,
+        role: profile.role,
+        is_active: profile.is_active,
+      };
+    });
+  }
+
   return (
     <AuthContext.Provider
-      value={{ user, loading, error, retry, login: handleLogin, logout: handleLogout }}
+      value={{ user, loading, error, retry, login: handleLogin, logout: handleLogout, syncProfile }}
     >
       {children}
     </AuthContext.Provider>

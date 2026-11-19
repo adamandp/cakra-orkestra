@@ -1,13 +1,11 @@
 import { http, HttpResponse } from "msw";
 import { loginSchema, passwordSchema } from "@/features/auth/auth.schema";
-import { mockUsers } from "../data/users";
+import { getMockUsers, matchesMockPassword, updateMockPassword } from "../data/users";
 import {
   revokeMockSession,
   createMockSession,
   getMockUser,
-  matchesMockPassword,
   refreshMockSession,
-  updateMockPassword,
 } from "../data/auth-store";
 
 const REFRESH_COOKIE = "refreshToken";
@@ -23,8 +21,16 @@ export const authHandlers = [
     if (!result.success)
       return HttpResponse.json({ message: "Invalid login details" }, { status: 400 });
     const { username, password } = result.data;
-    const user = mockUsers.find((item) => item.username === username && item.is_active);
+    const user = getMockUsers().find((item) => item.username === username && item.is_active);
     if (!user || !(await matchesMockPassword(user.id, password))) {
+      return unauthorized("Invalid username or password");
+    }
+    // Recheck after asynchronous password validation.
+    if (
+      !getMockUsers().some(
+        (item) => item.id === user.id && item.username === username && item.is_active,
+      )
+    ) {
       return unauthorized("Invalid username or password");
     }
     const session = createMockSession(user.id);

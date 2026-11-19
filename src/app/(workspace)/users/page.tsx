@@ -1,5 +1,5 @@
-import { PageHeader } from "@/components/shared/page-header";
+import { UserManagement } from "@/features/users/components/user-management";
 
 export default function UsersPage() {
-  return <PageHeader title="User Management" description="Manage team members and their roles." />;
+  return <UserManagement />;
 }
