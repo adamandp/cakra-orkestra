@@ -3,16 +3,19 @@
 import { useState } from "react";
 import { useFieldArray, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { PlusIcon, XIcon } from "lucide-react";
+import { TaskChecklistPanel } from "./task-checklist";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { DatePicker } from "@/components/shared/date-picker";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
+  useSheetLifecycle,
   Sheet,
   SheetContent,
   SheetDescription,
   SheetHeader,
+  SheetFooter,
   SheetTitle,
 } from "@/components/ui/sheet";
 import type { Project } from "@/interface/project.interface";
@@ -27,7 +30,7 @@ import {
 } from "../task.schema";
 import { taskTypeLabels, taskCategoryLabels } from "../task.constants";
 import { TaskSelect } from "./task-select";
-import { TaskProjectPicker, taskAssigneeOptions } from "./task-project-picker";
+import { TaskProjectPicker, useTaskAssigneeOptions } from "./task-project-picker";
 
 export function TaskFormSheet({
   task,
@@ -48,6 +51,7 @@ export function TaskFormSheet({
   const createMutation = useCreateTask();
   const updateMutation = useUpdateTask(task?.id ?? "");
   const mutation = task ? updateMutation : createMutation;
+  const lifecycle = useSheetLifecycle(onClose);
   const pending = mutation.isPending;
   const {
     control,
@@ -68,12 +72,14 @@ export function TaskFormSheet({
       checklists: [],
     },
   });
-  const { fields, append, remove } = useFieldArray({ control, name: "checklists" });
+  const { fields, append, remove, move } = useFieldArray({ control, name: "checklists" });
+  const [checklistDraft, setChecklistDraft] = useState("");
+  const checklistValues = useWatch({control, name: "checklists"});
   const assigneeId = useWatch({ control, name: "assignee_id" });
   const type = useWatch({ control, name: "task_type" });
   const category = useWatch({ control, name: "task_category" });
   const dueDate = useWatch({ control, name: "due_date" });
-  const assignees = taskAssigneeOptions(project, actorId);
+  const assignees = useTaskAssigneeOptions(project, actorId);
 
   function selectProject(next: Project | null) {
     setProject(next);
@@ -81,6 +87,7 @@ export function TaskFormSheet({
     setValue("assignee_id", actorId, { shouldValidate: true });
   }
   async function save(values: TaskFormValues) {
+    if (checklistDraft.trim()) { toast.warning("Add the pending checklist item before saving."); return; }
     const fields = {
       title: values.title,
       description: values.description,
@@ -98,16 +105,17 @@ export function TaskFormSheet({
             checklists: values.checklists,
           });
       toast.success(task ? "Task updated" : "Task created");
-      onSaved(result.id);
+      lifecycle.closeThen(() => onSaved(result.id));
     } catch {
       /* Preserve values for retry. */
     }
   }
   return (
     <Sheet
-      open
+      open={lifecycle.open}
+      onOpenChangeComplete={lifecycle.onOpenChangeComplete}
       onOpenChange={(open) => {
-        if (!open && !pending) onClose();
+        if (!open && !pending) lifecycle.close();
       }}
     >
       <SheetContent className="w-full border-l-2 border-border sm:max-w-lg">
@@ -118,11 +126,13 @@ export function TaskFormSheet({
           </SheetDescription>
         </SheetHeader>
         <form noValidate onSubmit={handleSubmit(save)} className="flex min-h-0 flex-1 flex-col">
-          <div className="flex-1 space-y-4 overflow-y-auto p-4">
+          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain p-4 sm:p-5">
+            <section className="space-y-3 border-2 border-border bg-muted/30 p-3">
+              <h3 className="text-sm font-bold"><span className="system-copy">Assignment</span></h3>
             <div className="space-y-2">
               <Label>Project</Label>
               {task || fixedProject ? (
-                <p className="rounded-md border p-3 text-sm">
+                <p className="border-2 border-border bg-background p-3 text-sm">
                   {task?.project.name ?? fixedProject?.name}
                 </p>
               ) : (
@@ -163,6 +173,9 @@ export function TaskFormSheet({
                 )}
               </div>
             )}
+            </section>
+            <section className="space-y-3 border-2 border-border p-3">
+              <h3 className="text-sm font-bold"><span className="system-copy">Task details</span></h3>
             <div className="space-y-2">
               <Label htmlFor="task-title">Title</Label>
               <Input
@@ -194,6 +207,9 @@ export function TaskFormSheet({
                 </p>
               )}
             </div>
+            </section>
+            <section className="space-y-3 border-2 border-border bg-muted/30 p-3">
+              <h3 className="text-sm font-bold"><span className="system-copy">Classification & schedule</span></h3>
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="task-type">Type</Label>
@@ -232,13 +248,13 @@ export function TaskFormSheet({
             </div>
             <div className="space-y-2">
               <Label htmlFor="task-due-date">Due date (optional)</Label>
-              <Input
+              <DatePicker
                 id="task-due-date"
-                type="date"
+                invalid={Boolean(errors.due_date)}
                 value={dueDate ?? ""}
                 disabled={pending}
-                onChange={(event) =>
-                  setValue("due_date", event.target.value || null, { shouldValidate: true })
+                onChange={(value) =>
+                  setValue("due_date", value || null, { shouldValidate: true })
                 }
               />
               {errors.due_date && (
@@ -247,52 +263,17 @@ export function TaskFormSheet({
                 </p>
               )}
             </div>
+            </section>
             {!task && (
-              <section className="space-y-2 border-t pt-3">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-semibold">Checklists (optional)</h3>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    disabled={pending}
-                    onClick={() => append({ title: "" })}
-                  >
-                    <PlusIcon /> Add item
-                  </Button>
-                </div>
-                {fields.map((field, index) => (
-                  <div key={field.id} className="space-y-1">
-                    <div className="flex gap-2">
-                      <Input
-                        aria-label={`Checklist ${index + 1}`}
-                        disabled={pending}
-                        {...register(`checklists.${index}.title`)}
-                      />
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        aria-label={`Remove checklist ${index + 1}`}
-                        disabled={pending}
-                        onClick={() => remove(index)}
-                      >
-                        <XIcon />
-                      </Button>
-                    </div>
-                    {errors.checklists?.[index]?.title && (
-                      <p role="alert" className="text-sm text-destructive">
-                        {errors.checklists[index]?.title?.message}
-                      </p>
-                    )}
-                  </div>
-                ))}
-                {!fields.length && (
-                  <p className="text-xs text-muted-foreground">
-                    You can add checklist items later.
-                  </p>
-                )}
-              </section>
+              <TaskChecklistPanel
+                items={fields.map((field,index) => ({id:field.id,title:checklistValues?.[index]?.title ?? field.title,is_completed:false}))}
+                editable busy={pending} canDelete
+                onDraftChange={setChecklistDraft}
+                onAdd={(title) => append({title})}
+                onUpdate={(id,input) => { const index = fields.findIndex(field => field.id === id); if(index >= 0 && input.title !== undefined) setValue(`checklists.${index}.title`,input.title,{shouldValidate:true}); }}
+                onRemove={(id) => remove(fields.findIndex(field => field.id === id))}
+                onOrder={(ids) => { const current = fields.map(field => field.id); ids.forEach((id,index) => { const from = current.indexOf(id); if(from >= 0 && from !== index) { move(from,index); current.splice(index,0,current.splice(from,1)[0]); } }); }}
+              />
             )}
             {mutation.isError && (
               <p role="alert" className="text-sm text-destructive">
@@ -300,14 +281,14 @@ export function TaskFormSheet({
               </p>
             )}
           </div>
-          <div className="flex justify-end gap-3 border-t p-4">
-            <Button type="button" variant="outline" disabled={pending} onClick={onClose}>
+          <SheetFooter>
+            <Button type="button" variant="outline" disabled={pending} onClick={lifecycle.close}><span className="system-copy">
               Cancel
-            </Button>
+            </span></Button>
             <Button type="submit" disabled={pending}>
               {pending ? "Saving..." : task ? "Save changes" : "Create task"}
             </Button>
-          </div>
+          </SheetFooter>
         </form>
       </SheetContent>
     </Sheet>

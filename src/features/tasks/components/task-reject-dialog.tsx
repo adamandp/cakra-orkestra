@@ -33,10 +33,10 @@ export function TaskRejectDialog({
         if (!busy) void submit();
       }}
     >
-      <h4 className="font-bold">Request revision</h4>
-      <p className="text-sm text-muted-foreground">
+      <h4 className="font-bold"><span className="system-copy">Request revision</span></h4>
+      <p className="text-sm text-muted-foreground"><span className="system-copy">
         The task returns to In progress. The reason is saved in status history.
-      </p>
+      </span></p>
       <Label htmlFor="task-reject-reason">Revision reason</Label>
       <textarea
         id="task-reject-reason"
@@ -54,9 +54,9 @@ export function TaskRejectDialog({
         </p>
       )}
       <div className="flex flex-wrap justify-end gap-2">
-        <Button type="button" variant="outline" disabled={busy} onClick={onCancel}>
+        <Button type="button" variant="outline" disabled={busy} onClick={onCancel}><span className="system-copy">
           Cancel
-        </Button>
+        </span></Button>
         <Button type="submit" variant="destructive" disabled={busy || !reason.trim()}>
           {busy ? "Please wait..." : "Confirm rejection"}
         </Button>

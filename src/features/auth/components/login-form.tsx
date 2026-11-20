@@ -3,7 +3,7 @@
 import { useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { AudioLinesIcon } from "lucide-react";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -28,10 +28,8 @@ export function LoginForm() {
     <main className="grid min-h-dvh place-items-center p-6">
       <Card className="w-full max-w-sm">
         <CardHeader className="gap-2">
-          <div className="mb-2 flex size-12 items-center justify-center rounded-lg border-2 border-border bg-secondary text-secondary-foreground shadow-neo-sm">
-            <AudioLinesIcon className="size-7" />
-          </div>
-          <CardTitle className="text-2xl font-black">Cakra Orkestra</CardTitle>
+          <Image src="/cakra-logo.png" alt="" width={48} height={48} className="mb-2 size-12 object-contain" />
+          <CardTitle className="text-2xl font-black"><span className="system-copy">Cakra Orkestra</span></CardTitle>
           <CardDescription>Sign in to your workspace.</CardDescription>
         </CardHeader>
         <CardContent>

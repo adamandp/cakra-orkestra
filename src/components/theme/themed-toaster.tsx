@@ -8,7 +8,9 @@ export function ThemedToaster() {
 
   return (
     <Toaster
-      position="top-right"
+      position="bottom-right"
+      closeButton
+      swipeDirections={["bottom", "right"]}
       richColors
       theme={resolvedTheme === "dark" ? "dark" : resolvedTheme === "light" ? "light" : "system"}
     />

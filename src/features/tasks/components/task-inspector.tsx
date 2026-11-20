@@ -1,23 +1,24 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useIsMutating } from "@tanstack/react-query";
-import { PencilIcon, Trash2Icon, UserRoundIcon } from "lucide-react";
+import { PencilIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
+  useSheetLifecycle,
   Sheet,
-  SheetContent,
+  SheetContent, SheetFooter,
   SheetDescription,
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
 import type { TaskDetail } from "@/interface/task.interface";
 import { useTask, taskKeys } from "../task.query";
-import { useDeleteTask } from "../task.mutation";
+import { useUpdateTaskDescription } from "../task.mutation";
 import { getTaskError } from "../task.api";
-import { isEditableTask, taskTypeLabels, taskCategoryLabels } from "../task.constants";
+import { getTaskPermissions, taskTypeLabels, taskCategoryLabels } from "../task.constants";
 import { TaskStatusBadge } from "./task-table";
 import { TaskChecklistPanel } from "./task-checklist";
 import { TaskWorkflow } from "./task-workflow";
@@ -30,10 +31,11 @@ export function TaskInspector({
   isAdmin,
   actorId,
   onClose,
-  onEdit,
-  onReassign,
-  onDeleted,
+  initialPanel,
+  initialSection,
+  personal = false,
 }: {
+  personal?: boolean;
   taskId: string;
   isAdmin: boolean;
   actorId: string;
@@ -41,40 +43,41 @@ export function TaskInspector({
   onEdit: (task: TaskDetail) => void;
   onReassign: (task: TaskDetail) => void;
   onDeleted: () => void;
+  initialSection?: "review" | "assessment";
+  initialPanel?: "block" | "submit";
 }) {
+  const lifecycle = useSheetLifecycle(onClose);
   const query = useTask(taskId);
-  const mutation = useDeleteTask(taskId);
-  const [confirmDelete, setConfirmDelete] = useState(false);
+  const descriptionMutation = useUpdateTaskDescription(taskId);
+  const [descriptionDraft, setDescriptionDraft] = useState<string | null>(null);
   const busy = useIsMutating({ mutationKey: taskKeys.mutations(taskId) }) > 0;
   const task = query.data;
-  const editable = Boolean(
-    task &&
-    (isAdmin || task.assignee_id === actorId) &&
-    isEditableTask(task.task_status) &&
-    task.project.status === "ACTIVE",
-  );
-  async function confirm() {
-    try {
-      await mutation.mutateAsync();
-      toast.success("Task deleted");
-      onDeleted();
-    } catch {
-      /* Preserve confirmation. */
-    }
-  }
+  const sectionRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!task || !initialSection) return;
+    const timer = window.setTimeout(() => sectionRef.current?.scrollIntoView({ block: "start", behavior: "instant" }), 0);
+    return () => window.clearTimeout(timer);
+  }, [task?.id, initialSection]);
+  const permissions = task ? getTaskPermissions(task, actorId, isAdmin) : null;
+  const editable = Boolean(permissions?.execute);
+  const canEditDescription = Boolean(permissions?.editDescription);
   return (
     <Sheet
-      open
+      open={lifecycle.open}
+      onOpenChangeComplete={lifecycle.onOpenChangeComplete}
       onOpenChange={(open) => {
-        if (!open && !busy) onClose();
+        if (!open && !busy) lifecycle.close();
       }}
     >
-      <SheetContent className="w-full border-l-2 border-border sm:max-w-lg">
+      <SheetContent
+        showCloseButton={false}
+        className="w-full gap-0 border-l-2 border-border sm:max-w-lg"
+      >
         <SheetHeader>
-          <SheetTitle>Task inspector</SheetTitle>
+          <SheetTitle><span className="system-copy">Task inspector</span></SheetTitle>
           <SheetDescription>{task?.code ?? "Task details"}</SheetDescription>
         </SheetHeader>
-        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain p-4 sm:p-5">
           {query.isPending ? (
             <div className="space-y-3">
               <Skeleton className="h-12 w-full" />
@@ -89,14 +92,75 @@ export function TaskInspector({
             </div>
           ) : (
             <>
-              <div className="space-y-2">
+              <div className="space-y-2 border-b border-border/30 pb-4">
                 <TaskStatusBadge status={task.task_status} />
                 <h2 className="break-words text-xl font-bold">{task.title}</h2>
                 <p className="text-sm text-muted-foreground">
                   {task.project.code} — {task.project.name}
                 </p>
+                {descriptionDraft !== null ? (
+                  <form
+                    className="space-y-2"
+                    onSubmit={async (event) => {
+                      event.preventDefault();
+                      if (!canEditDescription || !descriptionDraft.trim()) return;
+                      try {
+                        await descriptionMutation.mutateAsync({
+                          description: descriptionDraft.trim(),
+                        });
+                        setDescriptionDraft(null);
+                        toast.success("Description updated");
+                      } catch (error) {
+                        toast.error(getTaskError(error));
+                      }
+                    }}
+                  >
+                    <textarea
+                      className="min-h-24 w-full border-2 border-border bg-background p-2 text-sm"
+                      aria-label="Task description"
+                      value={descriptionDraft}
+                      disabled={busy}
+                      onChange={(event) => setDescriptionDraft(event.target.value)}
+                    />
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={busy}
+                        onClick={() => setDescriptionDraft(null)}
+                      >
+                        Cancel
+                      </Button>
+                      <Button type="submit" size="sm" disabled={busy || !descriptionDraft.trim()}><span className="system-copy">
+                        Save
+                      </span></Button>
+                    </div>
+                  </form>
+                ) : (
+                  <div className="flex items-start gap-2">
+                    <p className="min-w-0 flex-1 whitespace-pre-wrap break-words text-sm">
+                      {task.description}
+                    </p>
+                    {canEditDescription && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label="Edit description"
+                        disabled={busy}
+                        onClick={() => setDescriptionDraft(task.description)}
+                      >
+                        <PencilIcon />
+                      </Button>
+                    )}
+                  </div>
+                )}
+                {task.blocker_reason && (
+                  <p className="text-sm text-destructive">Blocker: {task.blocker_reason}</p>
+                )}
               </div>
-              <dl className="grid gap-3 rounded-lg border-2 border-border p-3 text-sm sm:grid-cols-2">
+              <dl className="grid grid-cols-2 gap-x-3 gap-y-4 border-2 border-border bg-muted/30 p-3 text-sm [&_dd]:mt-1 [&_dd]:font-medium [&_dd]:break-words">
                 <div>
                   <dt className="text-xs text-muted-foreground">Assignee</dt>
                   <dd className="break-words">
@@ -116,124 +180,58 @@ export function TaskInspector({
                   <dt className="text-xs text-muted-foreground">Category</dt>
                   <dd>{taskCategoryLabels[task.task_category]}</dd>
                 </div>
-                <div>
-                  <dt className="text-xs text-muted-foreground">Created at</dt>
-                  <dd>{new Date(task.created_at).toLocaleString()}</dd>
-                </div>
-                <div>
-                  <dt className="text-xs text-muted-foreground">Updated at</dt>
-                  <dd>{new Date(task.updated_at).toLocaleString()}</dd>
-                </div>
               </dl>
-              <section className="space-y-2">
-                <h3 className="font-bold">Description</h3>
-                <p className="whitespace-pre-wrap break-words text-sm">{task.description}</p>
-                {task.blocker_reason && (
-                  <p className="text-sm text-destructive">Blocker: {task.blocker_reason}</p>
-                )}
-              </section>
-              {editable ? (
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    variant="outline"
-                    disabled={busy || confirmDelete}
-                    onClick={() => onEdit(task)}
-                  >
-                    <PencilIcon /> Edit task
-                  </Button>
-                  {isAdmin && (
-                    <>
-                      <Button
-                        variant="outline"
-                        disabled={busy || confirmDelete}
-                        onClick={() => onReassign(task)}
-                      >
-                        <UserRoundIcon /> Reassign
-                      </Button>
-                      <Button
-                        variant="destructive"
-                        disabled={busy || confirmDelete}
-                        onClick={() => setConfirmDelete(true)}
-                      >
-                        <Trash2Icon /> Delete
-                      </Button>
-                    </>
-                  )}
-                </div>
-              ) : (
-                <p className="text-xs text-muted-foreground">This task is read-only.</p>
-              )}
-              {confirmDelete && isAdmin && editable && (
-                <div className="space-y-3 rounded-md border-2 border-border p-3">
-                  <p className="text-sm">
-                    Soft-delete this task? It will no longer appear in task lists.
-                  </p>
-                  {mutation.isError && (
-                    <p role="alert" className="text-sm text-destructive">
-                      {getTaskError(mutation.error)}
-                    </p>
-                  )}
-                  <div className="flex justify-end gap-2">
-                    <Button
-                      variant="outline"
-                      disabled={busy || mutation.isPending}
-                      onClick={() => {
-                        setConfirmDelete(false);
-                        mutation.reset();
-                      }}
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      variant="destructive"
-                      disabled={busy || mutation.isPending}
-                      onClick={() => void confirm()}
-                    >
-                      {mutation.isPending ? "Deleting..." : "Confirm delete"}
-                    </Button>
-                  </div>
-                </div>
-              )}
-              <TaskWorkflow
-                key={`${task.id}:${task.task_status}`}
-                task={task}
-                editable={editable && !confirmDelete}
-                busy={busy}
-                isAdmin={isAdmin}
-              />
-              <TaskChecklistPanel
-                key={task.id}
-                task={task}
-                editable={editable && !confirmDelete}
-                busy={busy}
-              />
-              <TaskEvidencePanel
-                key={`evidence:${task.id}`}
-                task={task}
-                editable={editable && !confirmDelete}
-                busy={busy}
-              />
+              <div ref={initialSection === "assessment" ? sectionRef : undefined}>
               <TaskAIAssessment
                 key={`assessment:${task.id}`}
                 task={task}
                 isAdmin={isAdmin}
                 actorId={actorId}
-                busy={busy || confirmDelete}
+                busy={busy}
               />
+              </div>
               {task.approved_at && (
                 <p className="text-xs text-muted-foreground">
                   Human approval: {new Date(task.approved_at).toLocaleString()}
                 </p>
               )}
+              <TaskChecklistPanel
+                canDelete={Boolean(permissions?.manageChecklist)}
+                canComplete={editable}
+                key={task.id}
+                task={task}
+                editable={Boolean(permissions?.manageChecklist)}
+                busy={busy}
+              />
+              {personal && <TaskEvidencePanel
+                key={`evidence:${task.id}`}
+                task={task}
+                editable={editable}
+                busy={busy}
+              />}
+              {!editable && !canEditDescription && !permissions?.review && (
+                <p className="text-xs text-muted-foreground"><span className="system-copy">This task is read-only.</span></p>
+              )}
+              <div ref={initialSection === "review" ? sectionRef : undefined}>
+              <TaskWorkflow
+                key={`${task.id}:${task.task_status}`}
+                task={task}
+                editable={editable}
+                busy={busy}
+                initialPanel={initialPanel}
+                canBlock={Boolean(permissions?.block)}
+                isAdmin={Boolean(permissions?.review)}
+              />
+              </div>
               <TaskStatusHistoryPanel task={task} />
             </>
           )}
         </div>
-        <div className="flex justify-end border-t p-4">
-          <Button variant="outline" disabled={busy || mutation.isPending} onClick={onClose}>
+        <SheetFooter>
+          <Button variant="outline" disabled={busy} onClick={lifecycle.close}><span className="system-copy">
             Close
-          </Button>
-        </div>
+          </span></Button>
+        </SheetFooter>
       </SheetContent>
     </Sheet>
   );

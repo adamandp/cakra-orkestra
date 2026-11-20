@@ -1,4 +1,5 @@
-import { http, HttpResponse } from "msw";
+import { HttpResponse } from "msw";
+import { http } from "./audited-http";
 import {
   createUserSchema,
   updateUserSchema,
@@ -16,6 +17,7 @@ import {
   toPublicUser,
   updateMockUser,
 } from "../data/users";
+import { getMockUser } from "../data/auth-store";
 import { requireMockAdmin } from "./authorization";
 
 function badRequest(message: string) {
@@ -67,8 +69,9 @@ export const userHandlers = [
   }),
 
   http.get("*/api/users/:id", ({ request, params }) => {
-    const admin = requireMockAdmin(request);
-    if (admin.error) return admin.error;
+    const actor = getMockUser(request);
+    if (!actor) return HttpResponse.json({ message: "Unauthorized" }, { status: 401 });
+    if (actor.role !== "ADMIN" && actor.id !== String(params.id)) return HttpResponse.json({ message: "Forbidden" }, { status: 403 });
     const user = findMockUser(String(params.id));
     return user ? HttpResponse.json({ data: toPublicUser(user) }) : notFound();
   }),
@@ -91,8 +94,9 @@ export const userHandlers = [
   }),
 
   http.patch("*/api/users/:id", async ({ request, params }) => {
-    const admin = requireMockAdmin(request);
-    if (admin.error) return admin.error;
+    const actor = getMockUser(request);
+    if (!actor) return HttpResponse.json({ message: "Unauthorized" }, { status: 401 });
+    if (actor.role !== "ADMIN" && actor.id !== String(params.id)) return HttpResponse.json({ message: "Forbidden" }, { status: 403 });
     const result = updateUserSchema.safeParse(await request.json().catch(() => null));
     if (!result.success) return badRequest(result.error.issues[0].message);
 

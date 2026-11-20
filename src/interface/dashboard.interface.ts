@@ -37,3 +37,11 @@ export interface MemberWorkload {
   unestimated_tasks: number;
   status: WorkloadStatus;
 }
+
+export interface FocusReviewEvent {
+  id: string;
+  title: string;
+  kind: "approved" | "rejected";
+  reason: string | null;
+  created_at: string;
+}

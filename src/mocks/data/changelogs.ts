@@ -77,14 +77,43 @@ function seedChangelogs(): MockChangelog[] {
   ].filter((entry) => Boolean(findMockProject(entry.project_id) && findMockUser(entry.created_by)));
 }
 
+function seedExtraChangelogs(): MockChangelog[] {
+  const topics = [
+    ["Search performance", "Optimize query execution", "Improve result ranking"],
+    ["Access management", "Improve permission validation", "Update access error messages"],
+    ["Dashboard improvements", "Refine summary cards", "Improve responsive layouts"],
+    ["API reliability", "Improve request validation", "Handle timeout errors"],
+    ["Monitoring updates", "Add health metrics", "Improve logging"],
+    ["Workflow improvements", "Simplify task navigation", "Refine status transitions"],
+    ["Data quality", "Validate imported records", "Improve duplicate detection"],
+    ["Infrastructure maintenance", "Optimize resource usage", "Update deployment configuration"],
+  ];
+  return Array.from({ length: 25 }, (_, i) => {
+    const [description, first, second] = topics[i % topics.length];
+    return buildChangelog({
+      project_id: i % 2 === 0 ? PROJECT_1_ID : PROJECT_2_ID,
+      version: `v0.${Math.floor(i / 2) + 1}.0`,
+      description,
+      changes: [{ description: first }, { description: second }, ...(i % 3 === 0 ? [{ description: "Update release documentation" }] : [])],
+    }, ADMIN_ID, new Date(Date.UTC(2026, 10, 16 - i, 2)).toISOString(),
+    `00000000-0000-4000-8000-${String(450 + i).padStart(12, "0")}`);
+  }).filter(entry => Boolean(findMockProject(entry.project_id) && findMockUser(entry.created_by)));
+}
+
+const EXTRA_SEED_KEY = "cakra-orkestra:mock-changelogs:extra-seed-v1";
+
 function saveMockChangelogs(entries: MockChangelog[]) {
   localStorage.setItem(CHANGELOGS_KEY, JSON.stringify(entries));
 }
 
 export function getMockChangelogs(): MockChangelog[] {
   const raw = localStorage.getItem(CHANGELOGS_KEY);
-  if (raw !== null) return JSON.parse(raw) as MockChangelog[];
-  const entries = seedChangelogs();
+  const entries = raw !== null ? JSON.parse(raw) as MockChangelog[] : seedChangelogs();
+  if (raw !== null && localStorage.getItem(EXTRA_SEED_KEY)) return entries;
+  for (const entry of seedExtraChangelogs()) {
+    if (!entries.some(existing => existing.id === entry.id || (existing.project_id === entry.project_id && existing.version === entry.version))) entries.push(entry);
+  }
+  localStorage.setItem(EXTRA_SEED_KEY, "1");
   saveMockChangelogs(entries);
   return entries;
 }

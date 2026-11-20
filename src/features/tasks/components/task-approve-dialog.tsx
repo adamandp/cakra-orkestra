@@ -17,7 +17,7 @@ export function TaskApproveDialog({
       aria-label="Confirm task approval"
       className="space-y-3 rounded-md border-2 border-border p-3"
     >
-      <h4 className="font-bold">Confirm approval</h4>
+      <h4 className="font-bold"><span className="system-copy">Confirm approval</span></h4>
       <p className="break-words text-sm">
         {task.code} — {task.title}
       </p>
@@ -27,14 +27,14 @@ export function TaskApproveDialog({
         Approval queues the final assessment; points are awarded only when it succeeds.
       </p>
       {!task.evidences.length && (
-        <p role="alert" className="text-sm text-destructive">
+        <p role="alert" className="text-sm text-destructive"><span className="system-copy">
           Evidence is required before approval.
-        </p>
+        </span></p>
       )}
       <div className="flex flex-wrap justify-end gap-2">
-        <Button variant="outline" disabled={busy} onClick={onCancel}>
+        <Button variant="outline" disabled={busy} onClick={onCancel}><span className="system-copy">
           Cancel
-        </Button>
+        </span></Button>
         <Button disabled={busy || !task.evidences.length} onClick={onConfirm}>
           {busy ? "Please wait..." : "Confirm approval"}
         </Button>

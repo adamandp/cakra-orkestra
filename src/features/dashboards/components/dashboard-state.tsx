@@ -28,9 +28,9 @@ export function DashboardState({
         className="space-y-3 rounded-lg border-2 border-border bg-card p-6 text-center"
       >
         <p className="text-sm text-destructive">{getTaskError(error)}</p>
-        <Button variant="outline" onClick={onRetry}>
+        <Button variant="outline" onClick={onRetry}><span className="system-copy">
           Retry
-        </Button>
+        </span></Button>
       </div>
     );
   return <>{children}</>;

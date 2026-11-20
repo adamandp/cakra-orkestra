@@ -20,7 +20,7 @@ export function TaskAIResultCard({
   const initial = type === "INITIAL";
   const running = isAssessmentRunning(result);
   return (
-    <article className="min-w-0 space-y-3 rounded-lg border-2 border-border bg-card p-3 shadow-neo-sm">
+    <article className="min-w-0 space-y-3 border border-border bg-background p-3">
       <h4 className="text-sm font-bold">{initial ? "Initial assessment" : "Final assessment"}</h4>
       <div aria-live="polite" className="space-y-2">
         {result?.status === "COMPLETED" ? (
@@ -43,7 +43,7 @@ export function TaskAIResultCard({
             {result.error_message || "Assessment failed."}
           </p>
         ) : (
-          <p className="text-sm text-muted-foreground">Awaiting admin approval</p>
+          <p className="text-sm text-muted-foreground"><span className="system-copy">Awaiting admin approval</span></p>
         )}
       </div>
       {result?.status === "FAILED" && canRetry && (
@@ -53,36 +53,9 @@ export function TaskAIResultCard({
       )}
       {result?.reasoning && (
         <p className="whitespace-pre-wrap break-words text-sm">
-          <span className="font-medium">AI reasoning: </span>
+          <span className="font-medium"><span className="system-copy">AI reasoning: </span></span>
           {result.reasoning}
         </p>
-      )}
-      {result?.model_name && (
-        <p className="break-words text-xs text-muted-foreground">Model: {result.model_name}</p>
-      )}
-      {result?.evaluated_at && (
-        <p className="text-xs text-muted-foreground">
-          Evaluated: {new Date(result.evaluated_at).toLocaleString()}
-        </p>
-      )}
-      {result && (
-        <details className="space-y-2 border-t pt-2 text-sm">
-          <summary className="cursor-pointer font-medium">Assessment input snapshot</summary>
-          <p className="break-words font-medium">{result.input_snapshot.title}</p>
-          <p className="whitespace-pre-wrap break-words text-muted-foreground">
-            {result.input_snapshot.description}
-          </p>
-          <ul className="list-disc space-y-1 pl-5 text-muted-foreground">
-            {result.input_snapshot.checklists.map((item, index) => (
-              <li key={index} className="break-words">
-                {item.title} — {item.is_completed ? "Completed" : "Incomplete"}
-              </li>
-            ))}
-          </ul>
-          {!result.input_snapshot.checklists.length && (
-            <p className="text-xs text-muted-foreground">No checklist items recorded.</p>
-          )}
-        </details>
       )}
     </article>
   );

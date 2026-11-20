@@ -1,7 +1,13 @@
 "use client";
 
+import { Pagination } from "@/components/shared/pagination";
+
 import { useState } from "react";
-import { ChevronLeftIcon, ChevronRightIcon, CheckIcon } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { axiosInstance } from "@/lib/axios";
+import { attendanceToday, type AttendanceList } from "@/interface/attendance.interface";
+import type { WebResponse } from "@/interface/common.interface";
+import { CheckIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { Project } from "@/interface/project.interface";
@@ -75,10 +81,10 @@ export function TaskProjectPicker({
           </Button>
         </div>
       ) : query.isPending ? (
-        <p className="text-sm text-muted-foreground">Loading projects...</p>
+        <p className="text-sm text-muted-foreground"><span className="system-copy">Loading projects...</span></p>
       ) : (
         <div className="space-y-1">
-          {!items.length && <p className="text-sm text-muted-foreground">No projects found.</p>}
+          {!items.length && <p className="text-sm text-muted-foreground"><span className="system-copy">No projects found.</span></p>}
           {items.map((project) => (
             <Button
               key={project.id}
@@ -97,36 +103,23 @@ export function TaskProjectPicker({
           ))}
         </div>
       )}
-      <div className="flex items-center justify-between">
-        <span className="text-xs text-muted-foreground">{total} projects</span>
-        <div className="flex gap-2">
-          <Button
-            type="button"
-            size="icon-sm"
-            variant="outline"
-            aria-label="Previous projects"
-            disabled={disabled || query.isPending || offset === 0}
-            onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}
-          >
-            <ChevronLeftIcon />
-          </Button>
-          <Button
-            type="button"
-            size="icon-sm"
-            variant="outline"
-            aria-label="Next projects"
-            disabled={disabled || query.isPending || offset + PAGE_SIZE >= total}
-            onClick={() => setOffset(offset + PAGE_SIZE)}
-          >
-            <ChevronRightIcon />
-          </Button>
-        </div>
-      </div>
+      <Pagination compact total={total} limit={PAGE_SIZE} offset={offset} count={items.length} disabled={disabled || query.isFetching} onOffsetChange={setOffset} />
     </div>
   );
 }
 
-export function taskAssigneeOptions(project: Project | null, actorId: string) {
+export function useTaskAssigneeOptions(project: Project | null, actorId: string) {
+  const date=attendanceToday();
+  const attendance=useQuery({queryKey:["attendance",actorId,"assignment",date],enabled:!!actorId&&!!project,queryFn:async({signal})=>{
+    const result:AttendanceList["items"]=[];
+    for(let offset=0;;offset+=100){
+      const {data}=await axiosInstance.get<WebResponse<AttendanceList>>("/attendance",{params:{date,limit:100,offset},signal});
+      result.push(...data.data.items);
+      if(result.length>=data.data.total||!data.data.items.length)break;
+    }
+    return result;
+  }});
+  const suffix=(id:string)=>{const status=attendance.data?.find(u=>u.id===id)?.status;return status&&status!=="PRESENT"&&status!=="WFH"?" — "+status+" today":"";};
   if (!project || !actorId) return [];
   const people = new Map(
     [project.owner, ...project.members]
@@ -135,8 +128,8 @@ export function taskAssigneeOptions(project: Project | null, actorId: string) {
   );
   const options = Array.from(people.values()).map((user) => ({
     value: user.id,
-    label: `${user.name} (@${user.username})`,
+    label: `${user.name} (@${user.username})`+suffix(user.id),
   }));
-  if (!people.has(actorId)) options.unshift({ value: actorId, label: "Myself (admin)" });
+  if (!people.has(actorId)) options.unshift({ value: actorId, label: "Myself (admin)"+suffix(actorId) });
   return options;
 }

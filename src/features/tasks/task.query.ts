@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { scoreKeys } from "@/features/scores/score.query";
 import { AI_RESULT_POLL_INTERVAL, isAssessmentRunning } from "./task-ai-result.constants";
 import type { TaskListParams } from "@/interface/task.interface";
@@ -25,6 +25,7 @@ export const taskKeys = {
 };
 export function useTasks(params: TaskListParams) {
   return useQuery({
+    placeholderData: keepPreviousData,
     queryKey: taskKeys.list(params),
     queryFn: ({ signal }) => getTasks(params, signal),
     // No new list-response fields; approved pending rows may still be processing or failed.

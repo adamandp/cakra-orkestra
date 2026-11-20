@@ -24,8 +24,8 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       <body className="antialiased">
         <ThemeProvider
           attribute="class"
-          defaultTheme="system"
-          enableSystem
+          defaultTheme="light"
+          enableSystem={false}
           disableTransitionOnChange
         >
           <MockProvider enabled={process.env.NEXT_PUBLIC_ENABLE_MSW === "true"}>

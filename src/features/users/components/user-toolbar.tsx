@@ -1,5 +1,7 @@
 "use client";
 
+import type { ReactNode } from "react";
+
 import { SearchIcon } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -28,7 +30,9 @@ export function UserToolbar({
   filters,
   roles,
   onChange,
+  actions,
 }: {
+  actions?: ReactNode;
   filters: UserFilters;
   roles: UserRole[];
   onChange: (filters: UserFilters) => void;
@@ -43,8 +47,8 @@ export function UserToolbar({
   const isFiltered = Boolean(filters.q || filters.role_id !== "all" || filters.status !== "all");
 
   return (
-    <div className="flex flex-wrap items-center gap-3">
-      <div className="relative min-w-48 flex-1 sm:max-w-sm">
+    <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+      <div className="relative min-w-0 basis-full sm:min-w-40 sm:basis-0 sm:flex-1">
         <SearchIcon className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
         <Input
           aria-label="Search users"
@@ -61,7 +65,10 @@ export function UserToolbar({
           if (value !== null) onChange({ ...filters, role_id: value });
         }}
       >
-        <SelectTrigger aria-label="Filter by role" className="min-w-32 border-2 border-border">
+        <SelectTrigger
+          aria-label="Filter by role"
+          className="min-w-0 flex-1 border-2 border-border sm:flex-none sm:min-w-32"
+        >
           <SelectValue>{roleLabel}</SelectValue>
         </SelectTrigger>
         <SelectContent>
@@ -81,7 +88,10 @@ export function UserToolbar({
           }
         }}
       >
-        <SelectTrigger aria-label="Filter by status" className="min-w-36 border-2 border-border">
+        <SelectTrigger
+          aria-label="Filter by status"
+          className="min-w-0 flex-1 border-2 border-border sm:flex-none sm:min-w-36"
+        >
           <SelectValue>{statusLabel}</SelectValue>
         </SelectTrigger>
         <SelectContent>
@@ -94,6 +104,9 @@ export function UserToolbar({
         <Button variant="ghost" onClick={() => onChange(defaultUserFilters)}>
           Reset
         </Button>
+      )}
+      {actions && (
+        <div className="ml-auto flex min-w-0 flex-wrap items-center gap-2">{actions}</div>
       )}
     </div>
   );

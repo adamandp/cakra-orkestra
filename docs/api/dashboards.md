@@ -63,3 +63,6 @@ ADMIN. 200: `{ "data": MemberWorkload[] }`. Tiap item berisi member ProjectUser,
 - active_projects adalah jumlah project unik pada task aktif, bukan jumlah semua project berstatus ACTIVE.
 - completion_rate = pembulatan persentase DONE / seluruh task, atau 0 ketika kosong.
 - Workload status berdasarkan active_points: AVAILABLE < 6; BALANCED 6–12; HIGH_LOAD ≥ 13.
+
+## GET /api/dashboards/my-focus/reviews
+Bearer required. Returns current assignee approval and rejection events: `{data: [{id,title,kind,reason,created_at}]}`, newest first. Poll every 5 seconds while My Focus is mounted; first visit seeds seen IDs, later events show toast.

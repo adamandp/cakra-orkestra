@@ -1,7 +1,10 @@
-import { http, HttpResponse } from "msw";
+import { HttpResponse } from "msw";
+import { http } from "./audited-http";
+import { getScoreMonth } from "@/features/scores/score.constants";
 import {
   createTaskSchema,
   updateTaskSchema,
+  updateTaskDescriptionSchema,
   updateTaskAssigneeSchema,
   taskListSchema,
   createTaskChecklistSchema,
@@ -87,6 +90,8 @@ function workflowHandler(action: TaskWorkflowAction) {
       return failure("Invalid task status transition", 409);
     if (action === "submit" && !result.task.evidences.length)
       return failure("Add at least one evidence before submitting", 409);
+    if (action === "submit" && result.task.checklists.some((item) => !item.is_completed))
+      return failure("Complete all checklist items before submitting", 409);
     const reason = "reason" in parsed.data ? String(parsed.data.reason) : null;
     const messages: Record<TaskWorkflowAction, string> = {
       start: "Task started",
@@ -114,8 +119,20 @@ export const taskHandlers = [
     const params = new URL(request.url).searchParams;
     const parsed = taskListSchema.safeParse(Object.fromEntries(params));
     if (!parsed.success) return failure("Invalid task filters", 400);
-    const { q, scope, project_id, assignee_id, status, type, category, limit, offset } =
-      parsed.data;
+    const {
+      q,
+      scope,
+      project_id,
+      assignee_id,
+      status,
+      exclude_status,
+      completed_month,
+      sort,
+      type,
+      category,
+      limit,
+      offset,
+    } = parsed.data;
     if (user.role !== "ADMIN" && assignee_id && assignee_id !== user.id)
       return failure("Forbidden", 403);
     const tasks = getMockTasks().filter(
@@ -126,6 +143,14 @@ export const taskHandlers = [
         (!project_id || task.project_id === project_id) &&
         (!assignee_id || task.assignee_id === assignee_id) &&
         (!status || task.task_status === status) &&
+        (!exclude_status || task.task_status !== exclude_status) &&
+        (!completed_month ||
+          (task.task_status === "DONE" &&
+            task.status_histories.some(
+              (h) =>
+                h.current_status === "DONE" &&
+                getScoreMonth(new Date(h.created_at)) === completed_month,
+            ))) &&
         (!type || task.task_type === type) &&
         (!category || task.task_category === category) &&
         (!q ||
@@ -133,6 +158,15 @@ export const taskHandlers = [
             value.toLowerCase().includes(q.toLowerCase()),
           )),
     );
+    if (sort)
+      tasks.sort((a, b) => {
+        if (sort === "recent") return b.status_changed_at.localeCompare(a.status_changed_at);
+        if (!a.due_date || !b.due_date) return Number(!a.due_date) - Number(!b.due_date);
+        return (
+          (sort === "due_asc" ? 1 : -1) * a.due_date.localeCompare(b.due_date) ||
+          a.id.localeCompare(b.id)
+        );
+      });
     return HttpResponse.json({
       data: {
         items: tasks.slice(offset, offset + limit).map(toPublicTask),
@@ -164,6 +198,8 @@ export const taskHandlers = [
   }),
 
   http.patch("*/api/tasks/:id", async ({ request, params }) => {
+    const admin = requireMockAdmin(request);
+    if (admin.error) return admin.error;
     const body = updateTaskSchema.safeParse(await request.json().catch(() => null));
     const id = String(params.id);
     const result = requireTask(request, id, true);
@@ -172,6 +208,18 @@ export const taskHandlers = [
     return taskResponse(
       updateMockTask(id, (task) => ({ ...task, ...body.data })),
       "Task updated",
+    );
+  }),
+
+  http.patch("*/api/tasks/:id/description", async ({ request, params }) => {
+    const id = String(params.id);
+    const result = requireTask(request, id, true);
+    if (result.error) return result.error;
+    const body = updateTaskDescriptionSchema.safeParse(await request.json().catch(() => null));
+    if (!body.success) return failure(body.error.issues[0].message, 400);
+    return taskResponse(
+      updateMockTask(id, (task) => ({ ...task, description: body.data.description })),
+      "Description updated",
     );
   }),
 
@@ -234,6 +282,8 @@ export const taskHandlers = [
     if (!body.success) return failure(body.error.issues[0].message, 400);
     if (!result.task.checklists.some((item) => item.id === itemId))
       return failure("Checklist not found", 404);
+    if (body.data.is_completed !== undefined && result.task.task_status !== "PROGRESS")
+      return failure("Task must be in progress to change checklist completion", 409);
     return taskResponse(
       updateMockTask(id, (task, now) => ({
         ...task,
@@ -258,6 +308,8 @@ export const taskHandlers = [
   }),
 
   http.delete("*/api/tasks/:id/checklists/:itemId", ({ request, params }) => {
+    const admin = requireMockAdmin(request);
+    if (admin.error) return admin.error;
     const id = String(params.id);
     const itemId = String(params.itemId);
     const result = requireTask(request, id, true);

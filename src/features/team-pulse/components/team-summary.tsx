@@ -22,24 +22,28 @@ export function TeamSummary() {
               value: data.waiting_approval_tasks,
               description: `${data.waiting_approval_points} estimated pts awaiting approval`,
               icon: ClockIcon,
+              tone: "yellow",
             },
             {
               label: "Blocked tasks",
               value: data.blocked_tasks,
               description: "Need follow-up",
               icon: BanIcon,
+              tone: "pink",
             },
             {
               label: "Completion rate",
               value: `${data.completion_rate}%`,
               description: `${data.completed_tasks} of ${data.total_tasks} tasks`,
               icon: CheckCircle2Icon,
+              tone: "mint",
             },
             {
               label: "Active tasks",
               value: data.active_tasks,
               description: `Across ${data.active_projects} projects with active tasks`,
               icon: ActivityIcon,
+              tone: "blue",
             },
           ]}
         />

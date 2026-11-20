@@ -3,16 +3,19 @@
 import { useState } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { PlusIcon, XIcon } from "lucide-react";
+import { PlusIcon, XIcon, FolderIcon, FileTextIcon, GitCommitHorizontalIcon, ListChecksIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { DateTimePicker } from "@/components/shared/date-time-picker";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
+  useSheetLifecycle,
   Sheet,
   SheetContent,
   SheetDescription,
   SheetHeader,
+  SheetFooter,
   SheetTitle,
 } from "@/components/ui/sheet";
 import type { Project } from "@/interface/project.interface";
@@ -39,10 +42,12 @@ export function ChangelogFormSheet({
   const createMutation = useCreateChangelog();
   const updateMutation = useUpdateChangelog(entry?.id ?? "");
   const mutation = entry ? updateMutation : createMutation;
+  const lifecycle = useSheetLifecycle(onClose);
   const pending = mutation.isPending;
   const {
     control,
     register,
+    watch,
     setValue,
     handleSubmit,
     formState: { errors },
@@ -58,6 +63,8 @@ export function ChangelogFormSheet({
     },
   });
   const { fields, append, remove } = useFieldArray({ control, name: "changes" });
+
+  const hasEmptyChange = (watch("changes") ?? []).some((change) => !change.description.trim());
 
   function selectProject(next: Project | null) {
     setProject(next);
@@ -79,7 +86,7 @@ export function ChangelogFormSheet({
           changes: values.changes,
         });
         toast.success("Changelog created");
-        onSaved(result.id);
+        lifecycle.closeThen(() => onSaved(result.id));
         return;
       }
       const input: UpdateChangelogInput = {};
@@ -95,12 +102,12 @@ export function ChangelogFormSheet({
       )
         input.changes = values.changes;
       if (Object.keys(input).length === 0) {
-        onSaved(entry.id);
+        lifecycle.closeThen(() => onSaved(entry.id));
         return;
       }
       const result = await updateMutation.mutateAsync(input);
       toast.success("Changelog updated");
-      onSaved(result.id);
+      lifecycle.closeThen(() => onSaved(result.id));
     } catch {
       /* Keep the form and show the mutation error. */
     }
@@ -108,12 +115,13 @@ export function ChangelogFormSheet({
 
   return (
     <Sheet
-      open
+      open={lifecycle.open}
+      onOpenChangeComplete={lifecycle.onOpenChangeComplete}
       onOpenChange={(open) => {
-        if (!open && !pending) onClose();
+        if (!open && !pending) lifecycle.close();
       }}
     >
-      <SheetContent className="w-full border-l-2 border-border sm:max-w-lg">
+      <SheetContent className="w-full border-l-2 border-border gap-0 sm:max-w-xl">
         <SheetHeader>
           <SheetTitle>{entry ? "Edit release" : "New release"}</SheetTitle>
           <SheetDescription>
@@ -121,8 +129,10 @@ export function ChangelogFormSheet({
           </SheetDescription>
         </SheetHeader>
         <form noValidate onSubmit={handleSubmit(save)} className="flex min-h-0 flex-1 flex-col">
-          <div className="flex-1 space-y-4 overflow-y-auto p-4">
-            <div className="space-y-2">
+          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
+            <section className="space-y-4 rounded-md border-2 border-border bg-card p-4 shadow-neo-sm">
+              <h3 className="flex items-center gap-2 font-bold"><FolderIcon className="size-4" /> Release overview</h3>
+              <div className="space-y-2">
               <Label>Project</Label>
               {entry ? (
                 <p className="rounded-md border p-3 text-sm">
@@ -141,7 +151,8 @@ export function ChangelogFormSheet({
                 </p>
               )}
             </div>
-            <div className="space-y-2">
+            <div className="grid min-w-0 gap-3 sm:grid-cols-2">
+            <div className="min-w-0 space-y-2">
               <Label htmlFor="release-version">Version</Label>
               <Input
                 id="release-version"
@@ -157,65 +168,50 @@ export function ChangelogFormSheet({
                 </p>
               )}
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="release-description">Description (optional)</Label>
-              <textarea
-                id="release-description"
-                rows={4}
-                disabled={pending}
-                className="w-full rounded-md border-2 border-border bg-background p-3 text-sm focus-visible:outline-2 focus-visible:outline-ring"
-                {...register("description")}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="release-commit">Commit URL (optional)</Label>
-              <Input
-                id="release-commit"
-                type="url"
-                placeholder="https://github.com/org/repo/commit/abc123"
-                disabled={pending}
-                aria-invalid={Boolean(errors.commit_url)}
-                {...register("commit_url")}
-              />
-              {errors.commit_url && (
-                <p role="alert" className="text-sm text-destructive">
-                  {errors.commit_url.message}
-                </p>
-              )}
-            </div>
-            <div className="space-y-2">
+            <div className="min-w-0 space-y-2">
               <Label htmlFor="release-date">Release date and time</Label>
-              <Input
-                id="release-date"
-                type="datetime-local"
-                disabled={pending}
-                aria-invalid={Boolean(errors.released_at)}
-                {...register("released_at")}
-              />
-              <p className="text-xs text-muted-foreground">Your local time zone</p>
+              <DateTimePicker id="release-date" value={watch("released_at")} disabled={pending} invalid={Boolean(errors.released_at)} onChange={value => setValue("released_at", value, { shouldDirty: true, shouldValidate: true })} />
+              <p className="text-xs text-muted-foreground"><span className="system-copy">Your local time zone</span></p>
               {errors.released_at && (
                 <p role="alert" className="text-sm text-destructive">
                   {errors.released_at.message}
                 </p>
               )}
             </div>
-            <section className="space-y-2 border-t pt-3">
+            </div>
+            </section>
+            <section className="space-y-3 rounded-md border-2 border-border p-4">
+              <h3 className="flex items-center gap-2 font-bold"><FileTextIcon className="size-4" /> Release summary <span className="ml-auto text-xs font-normal text-muted-foreground"><span className="system-copy">Optional</span></span></h3>
+              <textarea
+                id="release-description"
+                aria-label="Release summary"
+                placeholder="Summarize this release..."
+                rows={4}
+                disabled={pending}
+                className="block w-full resize-y rounded-md border-2 border-border bg-background p-3 text-sm focus-visible:outline-2 focus-visible:outline-ring"
+                {...register("description")}
+              />
+            </section>
+            <section className="space-y-3 rounded-md border-2 border-border p-4">
               <div className="flex items-center justify-between">
-                <h3 className="font-bold">Changes</h3>
+                <h3 className="flex items-center gap-2 font-bold"><ListChecksIcon className="size-4" /> What's changed</h3>
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
                   disabled={pending}
-                  onClick={() => append({ description: "" })}
+                  aria-disabled={pending}
+                  className={hasEmptyChange ? "cursor-not-allowed opacity-60" : undefined}
+                  onClick={() => { if (hasEmptyChange) { toast.error("Fill in all existing changes before adding a new one."); return; } append({ description: "" }); }}
                 >
                   <PlusIcon /> Add change
                 </Button>
               </div>
               {fields.map((field, index) => (
                 <div key={field.id} className="space-y-1">
-                  <div className="flex gap-2">
-                    <Input
+                  <div className="flex items-start gap-2">
+                    <span className="pt-2 text-xs font-mono text-muted-foreground">{String(index + 1).padStart(2, "0")}</span>
+                    <textarea rows={2} className="min-w-0 flex-1 resize-y rounded-md border-2 border-border bg-background p-2 text-sm" placeholder="Describe the change..."
                       aria-label={`Change ${index + 1}`}
                       disabled={pending}
                       aria-invalid={Boolean(errors.changes?.[index]?.description)}
@@ -240,7 +236,24 @@ export function ChangelogFormSheet({
                 </div>
               ))}
               {!fields.length && (
-                <p className="text-xs text-muted-foreground">No change items added.</p>
+                <p className="rounded-md border border-dashed border-border p-4 text-center text-xs text-muted-foreground"><span className="system-copy">No change items added.</span></p>
+              )}
+            </section>
+            <section className="space-y-3 rounded-md border-2 border-border p-4">
+              <h3 className="flex items-center gap-2 font-bold"><GitCommitHorizontalIcon className="size-4" /> Source reference <span className="ml-auto text-xs font-normal text-muted-foreground"><span className="system-copy">Optional</span></span></h3>
+              <Label htmlFor="release-commit">Commit URL</Label>
+              <Input
+                id="release-commit"
+                type="url"
+                placeholder="https://github.com/org/repo/commit/abc123"
+                disabled={pending}
+                aria-invalid={Boolean(errors.commit_url)}
+                {...register("commit_url")}
+              />
+              {errors.commit_url && (
+                <p role="alert" className="text-sm text-destructive">
+                  {errors.commit_url.message}
+                </p>
               )}
             </section>
             {mutation.isError && (
@@ -249,14 +262,14 @@ export function ChangelogFormSheet({
               </p>
             )}
           </div>
-          <div className="flex justify-end gap-3 border-t p-4">
-            <Button type="button" variant="outline" disabled={pending} onClick={onClose}>
+          <SheetFooter>
+            <Button type="button" variant="outline" disabled={pending} onClick={lifecycle.close}><span className="system-copy">
               Cancel
-            </Button>
+            </span></Button>
             <Button type="submit" disabled={pending}>
               {pending ? "Saving..." : entry ? "Save changes" : "Create release"}
             </Button>
-          </div>
+          </SheetFooter>
         </form>
       </SheetContent>
     </Sheet>

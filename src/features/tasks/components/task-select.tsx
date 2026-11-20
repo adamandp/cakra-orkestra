@@ -33,7 +33,11 @@ export function TaskSelect({
           onChange(next);
       }}
     >
-      <SelectTrigger id={id} aria-label={label} className="w-full min-w-32 border-2 border-border">
+      <SelectTrigger
+        id={id}
+        aria-label={label}
+        className="w-full min-w-0 border-2 border-border [&_[data-slot=select-value]]:truncate"
+      >
         <SelectValue>
           {options.find((option) => option.value === value)?.label ?? label}
         </SelectValue>

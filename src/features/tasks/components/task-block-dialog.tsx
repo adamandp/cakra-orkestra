@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { blockTaskSchema } from "../task.schema";
@@ -15,6 +15,21 @@ export function TaskBlockDialog({
   onCancel: () => void;
   onConfirm: (reason: string) => Promise<boolean>;
 }) {
+  const formRef = useRef<HTMLFormElement>(null);
+  const reasonRef = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => {
+      reasonRef.current?.focus({ preventScroll: true });
+      formRef.current?.scrollIntoView({
+        behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
+          ? "instant"
+          : "smooth",
+        block: "start",
+        inline: "nearest",
+      });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, []);
   const [reason, setReason] = useState("");
   const [error, setError] = useState<string | null>(null);
   async function submit() {
@@ -28,7 +43,8 @@ export function TaskBlockDialog({
   }
   return (
     <form
-      className="space-y-3 rounded-md border-2 border-border p-3"
+      ref={formRef}
+      className="scroll-mt-4 space-y-3 border-t border-dashed border-border pt-3"
       onSubmit={(event) => {
         event.preventDefault();
         if (!busy) void submit();
@@ -36,6 +52,7 @@ export function TaskBlockDialog({
     >
       <Label htmlFor="task-block-reason">Blocker reason</Label>
       <textarea
+        ref={reasonRef}
         id="task-block-reason"
         rows={3}
         maxLength={2000}
@@ -50,11 +67,16 @@ export function TaskBlockDialog({
           {error}
         </p>
       )}
-      <div className="flex justify-end gap-2">
-        <Button type="button" variant="outline" disabled={busy} onClick={onCancel}>
+      <div className="flex flex-wrap justify-end gap-3 border-t border-border pt-4 pb-2 pr-1">
+        <Button type="button" variant="outline" disabled={busy} onClick={onCancel}><span className="system-copy">
           Cancel
-        </Button>
-        <Button type="submit" variant="destructive" disabled={busy || !reason.trim()}>
+        </span></Button>
+        <Button
+          data-retain-disabled-shadow
+          type="submit"
+          variant="destructive"
+          disabled={busy || !reason.trim()}
+        >
           {busy ? "Please wait..." : "Confirm block"}
         </Button>
       </div>

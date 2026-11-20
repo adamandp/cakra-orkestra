@@ -8,7 +8,7 @@ const avatarUrl = z
   .string()
   .trim()
   .url("Enter a valid URL")
-  .refine((value) => /^https?:\/\//i.test(value), "Use an HTTP or HTTPS URL");
+  .refine((value) => /^https?:\/\//i.test(value) || (value.length <= 350000 && /^data:image\/(webp|png);base64,[A-Za-z0-9+/]+={0,2}$/.test(value)), "Use an HTTP or HTTPS URL or uploaded image");
 const birthDate = z.iso.date("Enter a valid date");
 
 const userFieldsSchema = z.object({
@@ -43,7 +43,7 @@ export function getUserFormSchema(mode: "create" | "edit") {
   return z
     .object({
       username,
-      name,
+      name: mode === "create" ? z.string() : name,
       avatar_url: z.union([z.literal(""), avatarUrl]),
       birth_date: z.union([z.literal(""), birthDate]),
       password: mode === "create" ? password : z.string(),

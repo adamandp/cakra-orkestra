@@ -40,3 +40,10 @@ export interface UserScoreResponse {
   summary: ScoreSummary;
   history: ScoreHistoryResponse;
 }
+
+export interface LeaderboardEntry extends ScoreSummary {
+  rank: number;
+  name: string;
+  username: string;
+  avatar_url: string | null;
+}

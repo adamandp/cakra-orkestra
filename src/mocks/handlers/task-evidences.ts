@@ -1,6 +1,8 @@
-import { http, HttpResponse } from "msw";
+import { HttpResponse } from "msw";
+import { http } from "./audited-http";
 import {
   createTaskLinkSchema,
+  updateTaskEvidenceSchema,
   presignTaskEvidenceSchema,
   confirmTaskEvidenceSchema,
 } from "@/features/tasks/task.schema";
@@ -17,6 +19,15 @@ import {
 } from "../data/task-evidences";
 import { failure, requireTask, taskResponse } from "./tasks";
 
+function canonicalUrl(value: string) {
+  return new URL(value).href;
+}
+async function hashBlob(blob: Blob) {
+  return Array.from(
+    new Uint8Array(await crypto.subtle.digest("SHA-256", await blob.arrayBuffer())),
+    (byte) => byte.toString(16).padStart(2, "0"),
+  ).join("");
+}
 export const taskEvidenceHandlers = [
   http.get("*/api/tasks/:id/evidences", ({ request, params }) => {
     const result = requireTask(request, String(params.id));
@@ -29,7 +40,18 @@ export const taskEvidenceHandlers = [
     const id = String(params.id);
     const result = requireTask(request, id, true);
     if (result.error) return result.error;
+    if (result.task.task_status === "BLOCKED")
+      return failure("Resume the task before adding evidence", 409);
     if (!body.success) return failure(body.error.issues[0].message, 400);
+    if (
+      result.task.evidences.some(
+        (item) =>
+          item.type === "LINK" &&
+          item.url &&
+          canonicalUrl(item.url) === canonicalUrl(body.data.url),
+      )
+    )
+      return failure("This link is already attached", 409);
     return taskResponse(
       updateMockTask(id, (task, now) => {
         const evidence: TaskEvidence = {
@@ -57,6 +79,8 @@ export const taskEvidenceHandlers = [
     const id = String(params.id);
     const result = requireTask(request, id, true);
     if (result.error) return result.error;
+    if (result.task.task_status === "BLOCKED")
+      return failure("Resume the task before adding evidence", 409);
     if (!body.success) return failure(body.error.issues[0].message, 400);
     try {
       const record = await createMockEvidenceUpload(id, result.user.id, body.data);
@@ -119,6 +143,8 @@ export const taskEvidenceHandlers = [
       if (current.task.evidences.some((item) => item.id === uploadId)) {
         return taskResponse(current.task, "Evidence already confirmed");
       }
+      if (current.task.task_status === "BLOCKED")
+        return failure("Resume the task before adding evidence", 409);
       if (Date.now() >= upload.expiresAt) return failure("Upload expired", 409);
       if (
         !upload.blob ||
@@ -127,10 +153,44 @@ export const taskEvidenceHandlers = [
       ) {
         return failure("Uploaded file not verified", 409);
       }
+      const hash = await hashBlob(upload.blob);
+      // Compare older uploads that predate content hashes as well.
+      const legacyMatches = new Set<string>();
+      for (const item of current.task.evidences) {
+        if (item.type !== "FILE" || item.sha256_hash || item.file_size !== upload.blob.size)
+          continue;
+        const prior = await getMockEvidenceUpload(item.id);
+        if (prior?.blob && (await hashBlob(prior.blob)) === hash) legacyMatches.add(item.id);
+      }
+      const latest = requireTask(request, id, true);
+      if (latest.error) return latest.error;
+      if (latest.task.retired_evidence_ids?.includes(uploadId))
+        return failure("Evidence was removed", 409);
+      if (latest.task.evidences.some((item) => item.id === uploadId))
+        return taskResponse(latest.task, "Evidence already confirmed");
+      if (latest.task.task_status === "BLOCKED")
+        return failure("Resume the task before adding evidence", 409);
+      if (Date.now() >= upload.expiresAt) return failure("Upload expired", 409);
+      if (
+        latest.task.evidences.some(
+          (item) =>
+            item.type === "FILE" && (item.sha256_hash === hash || legacyMatches.has(item.id)),
+        )
+      ) {
+        try {
+          await deleteMockEvidenceUpload(uploadId);
+        } catch {
+          /* Best-effort cleanup. */
+        }
+        return failure("This file is already attached", 409);
+      }
       return taskResponse(
         updateMockTask(id, (task, now) => ({
           ...task,
-          evidences: [...task.evidences, makeMockFileEvidence(upload, now, body.data.title)],
+          evidences: [
+            ...task.evidences,
+            { ...makeMockFileEvidence(upload, now, body.data.title), sha256_hash: hash },
+          ],
         })),
         "File added",
         201,
@@ -171,6 +231,42 @@ export const taskEvidenceHandlers = [
     } catch {
       return failure("Unable to read evidence file", 500);
     }
+  }),
+
+  http.patch("*/api/tasks/:id/evidences/:evidenceId", async ({ request, params }) => {
+    const body = updateTaskEvidenceSchema.safeParse(await request.json().catch(() => null));
+    const id = String(params.id);
+    const evidenceId = String(params.evidenceId);
+    const result = requireTask(request, id, true);
+    if (result.error) return result.error;
+    if (!body.success) return failure(body.error.issues[0].message, 400);
+    const item = result.task.evidences.find((item) => item.id === evidenceId);
+    if (!item) return failure("Evidence not found", 404);
+    const url = body.data.url;
+    if (item.type === "FILE" && url !== undefined)
+      return failure("File evidence cannot have a URL", 400);
+    if (
+      url &&
+      result.task.evidences.some(
+        (other) =>
+          other.id !== evidenceId &&
+          other.type === "LINK" &&
+          other.url &&
+          canonicalUrl(other.url) === canonicalUrl(url),
+      )
+    )
+      return failure("This link is already attached", 409);
+    return taskResponse(
+      updateMockTask(id, (task, now) => ({
+        ...task,
+        evidences: task.evidences.map((evidence) =>
+          evidence.id === evidenceId
+            ? { ...evidence, title: body.data.title, url: url ?? evidence.url, updated_at: now }
+            : evidence,
+        ),
+      })),
+      "Evidence updated",
+    );
   }),
 
   http.delete("*/api/tasks/:id/evidences/:evidenceId", async ({ request, params }) => {

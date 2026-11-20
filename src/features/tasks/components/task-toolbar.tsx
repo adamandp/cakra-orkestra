@@ -1,7 +1,10 @@
 "use client";
 
+import type { ReactNode } from "react";
+
 import { useState } from "react";
-import { SearchIcon, SlidersHorizontalIcon } from "lucide-react";
+import { SearchIcon, SlidersHorizontalIcon, ChevronDownIcon } from "lucide-react";
+import { Popover } from "@base-ui/react/popover";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { Project, ProjectUser } from "@/interface/project.interface";
@@ -34,9 +37,11 @@ export const defaultTaskFilters: TaskFilters = {
 export function TaskToolbar({
   filters,
   onChange,
+  actions,
   isAdmin,
   fixedProject,
 }: {
+  actions?: ReactNode;
   filters: TaskFilters;
   onChange: (filters: TaskFilters) => void;
   isAdmin: boolean;
@@ -54,8 +59,8 @@ export function TaskToolbar({
   );
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="relative min-w-48 flex-1 sm:max-w-sm">
+      <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+        <div className="relative min-w-0 basis-full sm:min-w-40 sm:basis-0 sm:flex-1">
           <SearchIcon className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             aria-label="Search tasks"
@@ -66,28 +71,7 @@ export function TaskToolbar({
             onChange={(event) => onChange({ ...filters, q: event.target.value })}
           />
         </div>
-        <div className="min-w-36">
-          <TaskSelect
-            label="Status"
-            value={filters.status}
-            options={[
-              { value: "all", label: "All statuses" },
-              ...taskStatusSchema.options.map((value) => ({
-                value,
-                label: taskStatusLabels[value],
-              })),
-            ]}
-            onChange={(value) => {
-              const status = taskStatusSchema.safeParse(value);
-              if (value === "all" || status.success)
-                onChange({
-                  ...filters,
-                  status: value === "all" ? "all" : taskStatusSchema.parse(value),
-                });
-            }}
-          />
-        </div>
-        <Button variant="outline" aria-expanded={expanded} onClick={() => setExpanded(!expanded)}>
+        <Button variant="outline" pressAnimation={false} className="h-10 gap-1.5 px-2.5 font-normal !shadow-none" aria-expanded={expanded} onClick={() => setExpanded(!expanded)}>
           <SlidersHorizontalIcon /> Filters
         </Button>
         {dirty && (
@@ -95,9 +79,12 @@ export function TaskToolbar({
             Reset
           </Button>
         )}
+        {actions && (
+          <div className="ml-auto flex min-w-0 flex-wrap items-center gap-2">{actions}</div>
+        )}
       </div>
       {expanded && (
-        <div className="grid gap-3 rounded-lg border-2 border-border p-3 sm:grid-cols-2">
+        <div className="grid grid-cols-1 items-start gap-2 sm:grid-cols-2 lg:grid-cols-4 rounded-lg border-2 border-border p-3 sm:gap-3">
           <TaskSelect
             label="Task type"
             value={filters.type}
@@ -126,33 +113,46 @@ export function TaskToolbar({
               })
             }
           />
-          {isAdmin && (
-            <TaskSelect
-              label="Task scope"
-              value={filters.scope}
-              options={[
-                { value: "all", label: "All tasks" },
-                { value: "me", label: "My tasks" },
-              ]}
-              onChange={(value) =>
-                onChange({ ...filters, scope: value === "me" ? "me" : "all", assignee: null })
-              }
-            />
-          )}
+        <div className="min-w-0">
+          <TaskSelect
+            label="Status"
+            value={filters.status}
+            options={[
+              { value: "all", label: "All statuses" },
+              ...taskStatusSchema.options.map((value) => ({
+                value,
+                label: taskStatusLabels[value],
+              })),
+            ]}
+            onChange={(value) => {
+              const status = taskStatusSchema.safeParse(value);
+              if (value === "all" || status.success)
+                onChange({
+                  ...filters,
+                  status: value === "all" ? "all" : taskStatusSchema.parse(value),
+                });
+            }}
+          />
+        </div>
           {!fixedProject && (
-            <TaskProjectPicker
-              selected={filters.project}
-              onChange={(project) => onChange({ ...filters, project })}
-            />
+            <Popover.Root>
+              <Popover.Trigger render={<Button type="button" variant="outline" pressAnimation={false} className="h-10 w-full min-w-0 justify-between font-normal !shadow-none" />}>
+                <span className="truncate">{filters.project?.name ?? "All projects"}</span><ChevronDownIcon />
+              </Popover.Trigger>
+              <Popover.Portal><Popover.Positioner align="start" sideOffset={6} className="z-50"><Popover.Popup data-slot="popover-content" className="w-80 max-w-[var(--available-width)] max-h-[var(--available-height)] overflow-y-auto bg-popover">
+                <TaskProjectPicker selected={filters.project} onChange={(project) => onChange({ ...filters, project })} />
+              </Popover.Popup></Popover.Positioner></Popover.Portal>
+            </Popover.Root>
           )}
           {isAdmin && (
-            <ProjectUserPicker
-              label="Filter assignee"
-              activeOnly={false}
-              selected={filters.assignee ? [filters.assignee] : []}
-              disabled={filters.scope === "me"}
-              onChange={(users) => onChange({ ...filters, assignee: users[0] ?? null })}
-            />
+            <Popover.Root>
+              <Popover.Trigger render={<Button type="button" variant="outline" pressAnimation={false} className="h-10 w-full min-w-0 justify-between font-normal !shadow-none" />}>
+                <span className="truncate">{filters.assignee?.name ?? "All assignees"}</span><ChevronDownIcon />
+              </Popover.Trigger>
+              <Popover.Portal><Popover.Positioner align="start" sideOffset={6} className="z-50"><Popover.Popup data-slot="popover-content" className="w-80 max-w-[var(--available-width)] max-h-[var(--available-height)] overflow-y-auto bg-popover">
+                <ProjectUserPicker label="Filter assignee" activeOnly={false} selected={filters.assignee ? [filters.assignee] : []} onChange={(users) => onChange({ ...filters, scope: "all", assignee: users[0] ?? null })} />
+              </Popover.Popup></Popover.Positioner></Popover.Portal>
+            </Popover.Root>
           )}
         </div>
       )}

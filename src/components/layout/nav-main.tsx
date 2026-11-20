@@ -25,12 +25,12 @@ export function NavMain({ label, items }: NavMainProps) {
   const { isMobile, setOpenMobile } = useSidebar();
 
   return (
-    <SidebarGroup>
-      <SidebarGroupLabel className="text-xs font-bold uppercase tracking-wider">
+    <SidebarGroup className="px-0 py-2">
+      <SidebarGroupLabel className="h-7 min-w-0 truncate px-2 text-[11px] font-extrabold uppercase tracking-[0.14em] text-muted-foreground group-data-[collapsible=icon]:hidden">
         {label}
       </SidebarGroupLabel>
       <SidebarGroupContent>
-        <SidebarMenu className="gap-1">
+        <SidebarMenu className="gap-0">
           {items.map((item) => {
             const isActive = isNavigationActive(pathname, item.url);
             return (
@@ -43,10 +43,12 @@ export function NavMain({ label, items }: NavMainProps) {
                   onClick={() => {
                     if (isMobile) setOpenMobile(false);
                   }}
-                  className="h-10 rounded-lg border-2 border-transparent font-semibold data-active:border-sidebar-border data-active:font-bold data-active:shadow-neo-sm"
+                  className="orkestra-nav-link flex h-10 w-full items-center gap-2.5 rounded-none px-3 text-[12px] font-bold uppercase tracking-[0.035em] data-active:font-extrabold group-data-[collapsible=icon]:mr-auto group-data-[collapsible=icon]:justify-start"
                 >
-                  <item.icon />
-                  <span>{item.title}</span>
+                  <item.icon className="size-4! shrink-0" />
+                  <span className="min-w-0 flex-1 truncate group-data-[collapsible=icon]:hidden">
+                    {item.title}
+                  </span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             );

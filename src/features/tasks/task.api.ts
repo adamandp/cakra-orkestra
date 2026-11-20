@@ -4,6 +4,7 @@ import type { WebResponse } from "@/interface/common.interface";
 import type {
   CreateTaskInput,
   UpdateTaskInput,
+  UpdateTaskDescriptionInput,
   TaskDetail,
   TaskListParams,
   TaskListResponse,
@@ -16,6 +17,7 @@ import type {
   TaskEvidence,
   TaskStatusHistory,
   CreateTaskLinkInput,
+  UpdateTaskEvidenceInput,
   PresignTaskEvidenceInput,
   PresignTaskEvidenceResponse,
   ConfirmTaskEvidenceInput,
@@ -38,6 +40,10 @@ export async function createTask(input: CreateTaskInput) {
 }
 export async function updateTask(id: string, input: UpdateTaskInput) {
   const { data } = await axiosInstance.patch<WebResponse<TaskDetail>>(`/tasks/${id}`, input);
+  return data.data;
+}
+export async function updateTaskDescription(id: string, input: UpdateTaskDescriptionInput) {
+  const { data } = await axiosInstance.patch<WebResponse<TaskDetail>>(`/tasks/${id}/description`, input);
   return data.data;
 }
 export async function deleteTask(id: string) {
@@ -158,6 +164,10 @@ export async function uploadTaskEvidence(id: string, file: File, title?: string)
     withCredentials: false,
   });
   return confirmTaskEvidence(id, { object_key: presigned.object_key, title });
+}
+export async function updateTaskEvidence(id: string, evidenceId: string, input: UpdateTaskEvidenceInput) {
+  const { data } = await axiosInstance.patch<WebResponse<TaskDetail>>(`/tasks/${id}/evidences/${evidenceId}`, input);
+  return data.data;
 }
 export async function deleteTaskEvidence(id: string, evidenceId: string) {
   const { data } = await axiosInstance.delete<WebResponse<TaskDetail>>(

@@ -40,8 +40,8 @@ export function RouteAccessGate({ children }: { children: ReactNode }) {
     return (
       <div className="grid flex-1 place-items-center p-6 text-center">
         <div className="space-y-3">
-          <h1 className="text-3xl font-black">Access denied</h1>
-          <p className="text-muted-foreground">You do not have access to this page.</p>
+          <h1 className="text-3xl font-black"><span className="system-copy">Access denied</span></h1>
+          <p className="text-muted-foreground"><span className="system-copy">You do not have access to this page.</span></p>
           <Button onClick={() => router.replace("/my-focus")}>Back to My Focus</Button>
         </div>
       </div>

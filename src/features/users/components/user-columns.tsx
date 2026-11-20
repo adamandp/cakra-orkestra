@@ -1,22 +1,15 @@
 "use client";
 
-import { EllipsisIcon, PencilIcon, ShieldIcon, UserCheckIcon, UserXIcon } from "lucide-react";
+import { ArrowRightIcon } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { TableCell, TableRow } from "@/components/ui/table";
 import type { User } from "@/interface/user.interface";
 
-export type UserAction = "edit" | "role" | "status";
+export type UserAction = "detail";
 
-export const userColumns = ["Name", "Username", "Role", "Status", "Actions"];
+export const userColumns = ["Name", "Username", "Role", "Status", ""];
 
 export function UserTableRow({
   user,
@@ -37,7 +30,7 @@ export function UserTableRow({
     .toUpperCase();
 
   return (
-    <TableRow>
+    <TableRow className="cursor-pointer" onClick={() => onAction("detail", user)}>
       <TableCell className="px-4 py-3">
         <div className="flex items-center gap-3">
           <Avatar>
@@ -46,7 +39,7 @@ export function UserTableRow({
           </Avatar>
           <div>
             <span className="font-medium">{user.name}</span>
-            {isSelf && <span className="ml-2 text-xs text-muted-foreground">(You)</span>}
+            {isSelf && <span className="ml-2 text-xs text-muted-foreground"><span className="system-copy">(You)</span></span>}
           </div>
         </div>
       </TableCell>
@@ -56,7 +49,7 @@ export function UserTableRow({
       </TableCell>
       <TableCell>
         <Badge
-          variant={user.is_active ? "outline" : "secondary"}
+          variant={user.is_active ? "success" : "neutral"}
           className={
             user.is_active ? "border-emerald-600 text-emerald-700 dark:text-emerald-400" : ""
           }
@@ -65,32 +58,7 @@ export function UserTableRow({
         </Badge>
       </TableCell>
       <TableCell className="pr-4 text-right">
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            render={
-              <Button variant="ghost" size="icon-sm" aria-label={`Actions for ${user.name}`} />
-            }
-          >
-            <EllipsisIcon />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="min-w-40">
-            <DropdownMenuItem onClick={() => onAction("edit", user)}>
-              <PencilIcon /> Edit user
-            </DropdownMenuItem>
-            <DropdownMenuItem disabled={isSelf} onClick={() => onAction("role", user)}>
-              <ShieldIcon /> Change role
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              disabled={isSelf}
-              variant={user.is_active ? "destructive" : "default"}
-              onClick={() => onAction("status", user)}
-            >
-              {user.is_active ? <UserXIcon /> : <UserCheckIcon />}
-              {user.is_active ? "Deactivate" : "Activate"}
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <Button variant="ghost" size="icon-sm" pressAnimation={false} aria-label={`View ${user.name}`} onClick={event => { event.stopPropagation(); onAction("detail", user); }}><ArrowRightIcon /></Button>
       </TableCell>
     </TableRow>
   );

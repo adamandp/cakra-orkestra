@@ -11,13 +11,13 @@ export default function WorkspaceLayout({ children }: { children: ReactNode }) {
       <TooltipProvider>
         <SidebarProvider
           className="h-svh overflow-hidden"
-          style={{ "--sidebar-width": "18rem", "--header-height": "3.5rem" } as CSSProperties}
+          style={{ "--header-height": "5rem" } as CSSProperties}
         >
-          <AppSidebar variant="inset" />
-          <SidebarInset className="min-w-0 overflow-hidden border-border md:border-2 md:shadow-none">
+          <AppSidebar variant="sidebar" />
+          <SidebarInset className="min-w-0 overflow-hidden">
             <SiteHeader />
             <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-              <div className="@container/main flex flex-1 flex-col gap-6 p-4 lg:p-6">
+              <div className="@container/main flex flex-1 flex-col gap-6 p-4 sm:p-6 lg:px-8 lg:py-5">
                 <RouteAccessGate>{children}</RouteAccessGate>
               </div>
             </div>

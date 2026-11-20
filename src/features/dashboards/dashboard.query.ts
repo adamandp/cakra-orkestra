@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { taskKeys } from "@/features/tasks/task.query";
 import { getTasks } from "@/features/tasks/task.api";
 import { useAuth } from "@/providers/auth-provider";
@@ -56,6 +56,7 @@ export function useDashboardTasks(params: TaskListParams, enabled = true) {
   const { user } = useAuth();
   return useQuery({
     ...liveOptions,
+    placeholderData: keepPreviousData,
     queryKey: taskKeys.list(params),
     queryFn: ({ signal }) => getTasks(params, signal),
     enabled: Boolean(user) && enabled && (params.scope === "me" || user?.role === "ADMIN"),

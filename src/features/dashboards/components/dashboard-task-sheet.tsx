@@ -12,18 +12,30 @@ type SheetState =
   | { action: "edit"; task: TaskDetail }
   | { action: "reassign"; task: TaskDetail };
 
-export function DashboardTaskSheet({ taskId, onClose }: { taskId: string; onClose: () => void }) {
+export function DashboardTaskSheet({
+  taskId,
+  onClose,
+  initialPanel,
+  initialSection,
+  personal = false,
+}: {
+  taskId: string;
+  onClose: () => void;
+  initialSection?: "review" | "assessment";
+  initialPanel?: "block" | "submit";
+  personal?: boolean;
+}) {
   const { user } = useAuth();
   const [sheet, setSheet] = useState<SheetState>({ action: "inspect", id: taskId });
   if (!user) return null;
   const actorId = user.id;
-  const isAdmin = user.role === "ADMIN";
+  const isAdmin = !personal && user.role === "ADMIN";
   function inspect(id: string) {
     setSheet({ action: "inspect", id });
   }
 
   if (sheet.action === "edit")
-    return (
+    return isAdmin ? (
       <TaskFormSheet
         key={sheet.task.id}
         task={sheet.task}
@@ -32,7 +44,7 @@ export function DashboardTaskSheet({ taskId, onClose }: { taskId: string; onClos
         onClose={() => inspect(sheet.task.id)}
         onSaved={inspect}
       />
-    );
+    ) : null;
   if (sheet.action === "reassign")
     return isAdmin ? (
       <TaskAssigneeSheet
@@ -47,11 +59,16 @@ export function DashboardTaskSheet({ taskId, onClose }: { taskId: string; onClos
     <TaskInspector
       key={sheet.id}
       taskId={sheet.id}
+      personal={personal}
+      initialPanel={initialPanel}
+      initialSection={initialSection}
       actorId={actorId}
       isAdmin={isAdmin}
       onClose={onClose}
       onDeleted={onClose}
-      onEdit={(task) => setSheet({ action: "edit", task })}
+      onEdit={(task) => {
+        if (isAdmin) setSheet({ action: "edit", task });
+      }}
       onReassign={(task) => {
         if (isAdmin) setSheet({ action: "reassign", task });
       }}

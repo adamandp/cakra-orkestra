@@ -1,7 +1,7 @@
 "use client";
 
-import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Pagination } from "@/components/shared/pagination";
+
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -21,6 +21,7 @@ export function UserTable({
   limit,
   offset,
   onOffsetChange,
+  onLimitChange,
   onAction,
 }: {
   data?: UserListResponse;
@@ -29,15 +30,14 @@ export function UserTable({
   limit: number;
   offset: number;
   onOffsetChange: (offset: number) => void;
+  onLimitChange: (limit: number) => void;
   onAction: (action: UserAction, user: User) => void;
 }) {
   const users = data?.items ?? [];
   const total = data?.total ?? 0;
-  const page = Math.floor(offset / limit) + 1;
-  const pageCount = Math.max(1, Math.ceil(total / limit));
 
   return (
-    <div className="overflow-hidden rounded-lg border-2 border-border bg-card shadow-neo-sm">
+    <div className="min-w-0 bg-card">
       <Table>
         <TableHeader className="bg-muted/50">
           <TableRow>
@@ -89,40 +89,7 @@ export function UserTable({
           )}
         </TableBody>
       </Table>
-      <div className="flex flex-wrap items-center justify-between gap-3 border-t p-4">
-        <p className="text-sm text-muted-foreground" aria-live="polite">
-          {loading
-            ? "Loading users..."
-            : users.length
-              ? `Showing ${offset + 1}–${offset + users.length} of ${total} users`
-              : total
-                ? `0 users on this page (${total} total)`
-                : "0 users"}
-        </p>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="icon-sm"
-            aria-label="Previous page"
-            disabled={loading || offset === 0}
-            onClick={() => onOffsetChange(Math.max(0, offset - limit))}
-          >
-            <ChevronLeftIcon />
-          </Button>
-          <span className="text-sm tabular-nums">
-            {loading ? `Page ${page}` : `${page} / ${pageCount}`}
-          </span>
-          <Button
-            variant="outline"
-            size="icon-sm"
-            aria-label="Next page"
-            disabled={loading || offset + limit >= total}
-            onClick={() => onOffsetChange(offset + limit)}
-          >
-            <ChevronRightIcon />
-          </Button>
-        </div>
-      </div>
+      <div className="explorer-panel-footer"><Pagination total={total} limit={limit} offset={offset} count={users.length} disabled={loading} onOffsetChange={onOffsetChange} onLimitChange={onLimitChange} /></div>
     </div>
   );
 }

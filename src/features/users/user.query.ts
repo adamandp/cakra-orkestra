@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import type { UserListParams } from "@/interface/user.interface";
 import { getRole, getRoles, getUser, getUsers } from "./user.api";
 
@@ -15,10 +15,11 @@ export const roleKeys = {
   detail: (id: string) => ["roles", "detail", id] as const,
 };
 
-export function useUsers(params: UserListParams) {
+export function useUsers(params: UserListParams, options?: { keepPreviousData?: boolean }) {
   return useQuery({
     queryKey: userKeys.list(params),
     queryFn: ({ signal }) => getUsers(params, signal),
+    placeholderData: options?.keepPreviousData ? keepPreviousData : undefined,
   });
 }
 

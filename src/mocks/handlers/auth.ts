@@ -1,4 +1,5 @@
-import { http, HttpResponse } from "msw";
+import { HttpResponse } from "msw";
+import { http } from "./audited-http";
 import { loginSchema, passwordSchema } from "@/features/auth/auth.schema";
 import { getMockUsers, matchesMockPassword, updateMockPassword } from "../data/users";
 import {

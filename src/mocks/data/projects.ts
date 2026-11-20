@@ -2,7 +2,7 @@ import type { AuthUser } from "@/interface/auth.interface";
 import type {
   CreateProjectInput, Project, ProjectStatus, ProjectUser, UpdateProjectInput,
 } from "@/interface/project.interface";
-import { getMockUsers } from "./users";
+import { demoTeamUsers, getMockUsers } from "./users";
 
 const PROJECTS_KEY = "cakra-orkestra:mock-projects:v1";
 const adminId = "00000000-0000-4000-8000-000000000001";
@@ -50,11 +50,60 @@ const seedProjects: MockProject[] = [
   },
 ];
 
+const extraProjects: MockProject[] = [
+  { id: "00000000-0000-4000-8000-000000000204", code: "PRJ-004", name: "Document Intelligence", description: "Document ingestion and retrieval", status: "ACTIVE", owner_id: adminId, member_ids: [memberId], created_by: adminId, created_at: timestamp, updated_at: timestamp },
+  { id: "00000000-0000-4000-8000-000000000205", code: "PRJ-005", name: "Platform Operations", description: "Infrastructure and observability", status: "ACTIVE", owner_id: adminId, member_ids: [memberId], created_by: adminId, created_at: timestamp, updated_at: timestamp },
+];
+
+const additionalProjects: MockProject[] = [
+  "Customer Portal", "Payment Gateway", "Knowledge Graph", "Voice Assistant",
+  "Analytics Studio", "Fraud Detection", "Data Warehouse", "Workflow Automation",
+  "Identity Service", "Notification Center", "Mobile Banking", "API Gateway",
+  "Model Monitoring", "Billing Platform", "Inventory System", "Support Desk",
+].map((name, index) => ({
+  id: `00000000-0000-4000-8000-${String(6000 + index).padStart(12, "0")}`,
+  code: `PRJ-${String(index + 6).padStart(3, "0")}`,
+  name,
+  description: `Demo project for ${name.toLowerCase()}`,
+  status: index % 4 === 0 ? "COMPLETED" : "ACTIVE",
+  owner_id: adminId,
+  member_ids: [memberId, ...demoTeamUsers.slice(index % 8, index % 8 + 3).map(user => user.id)],
+  created_by: adminId,
+  created_at: timestamp,
+  updated_at: timestamp,
+}));
+
 export function getMockProjects(): MockProject[] {
   const stored = localStorage.getItem(PROJECTS_KEY);
-  return stored === null
-    ? seedProjects.map((project) => ({ ...project, member_ids: [...project.member_ids] }))
-    : JSON.parse(stored) as MockProject[];
+  const projects: MockProject[] = stored === null ? seedProjects.map((project) => ({ ...project, member_ids: [...project.member_ids] })) : JSON.parse(stored);
+  if (!localStorage.getItem("cakra-orkestra:demo-projects:v2")) {
+    for (const project of extraProjects) {
+      if (!projects.some((item) => item.id === project.id)) {
+        const next = Math.max(0, ...projects.map((item) => Number(item.code.slice(4)))) + 1;
+        projects.push({ ...project, code: `PRJ-${String(next).padStart(3, "0")}` });
+      }
+    }
+    saveMockProjects(projects);
+    localStorage.setItem("cakra-orkestra:demo-projects:v2", "1");
+  }
+  if (!localStorage.getItem("cakra-orkestra:demo-projects:v3")) {
+    const users = getMockUsers();
+    for (const project of additionalProjects) {
+      if (projects.some(item => item.id === project.id)) continue;
+      const next = Math.max(0, ...projects.map(item => Number(item.code.slice(4)))) + 1;
+      projects.push({ ...project, code: `PRJ-${String(next).padStart(3, "0")}`, member_ids: project.member_ids.filter(id => users.some(user => user.id === id)) });
+    }
+    saveMockProjects(projects);
+    localStorage.setItem("cakra-orkestra:demo-projects:v3", "1");
+  }
+  if (!localStorage.getItem("cakra-orkestra:demo-team-project:v1")) {
+    const project = projects.find((item) => item.id === seedProjects[0].id);
+    const users = getMockUsers();
+    if (project) project.member_ids = [...new Set([...project.member_ids, memberId, ...demoTeamUsers.filter((u) => users.some((item) => item.id === u.id)).map((u) => u.id)])].filter((id) => id !== project.owner_id);
+    saveMockProjects(projects);
+    localStorage.setItem("cakra-orkestra:demo-team-project:v1", "1");
+  }
+  return projects;
 }
 
 function saveMockProjects(projects: MockProject[]) {

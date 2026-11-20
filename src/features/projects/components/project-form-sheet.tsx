@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { useSheetLifecycle, Sheet, SheetContent, SheetFooter, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { Project, ProjectUser } from "@/interface/project.interface";
 import { getProjectError } from "../project.api";
@@ -26,6 +26,7 @@ export function ProjectFormSheet({ projectId, onClose, onSaved }: {
   const updateMutation = useUpdateProject();
   const editing = Boolean(projectId);
   const mutation = editing ? updateMutation : createMutation;
+  const lifecycle = useSheetLifecycle(onClose);
   const pending = mutation.isPending;
 
   async function save(values: ProjectFormValues) {
@@ -38,15 +39,14 @@ export function ProjectFormSheet({ projectId, onClose, onSaved }: {
         await createMutation.mutateAsync({ ...fields, member_ids: values.member_ids });
         toast.success("Project created");
       }
-      onSaved();
-      onClose();
+      lifecycle.closeThen(() => { onSaved(); onClose(); });
     } catch {
       // Preserve form state and display the API error.
     }
   }
 
   return (
-    <Sheet open onOpenChange={(open) => { if (!open && !pending) onClose(); }}>
+    <Sheet open={lifecycle.open} onOpenChangeComplete={lifecycle.onOpenChangeComplete} onOpenChange={(open) => { if (!open && !pending) lifecycle.close(); }}>
       <SheetContent className="w-full border-l-2 border-border sm:max-w-lg">
         <SheetHeader>
           <SheetTitle>{editing ? "Edit project" : "New project"}</SheetTitle>
@@ -54,7 +54,7 @@ export function ProjectFormSheet({ projectId, onClose, onSaved }: {
         </SheetHeader>
         {editing && detail.isPending ? <div className="space-y-4 p-4"><Skeleton className="h-10 w-full" /><Skeleton className="h-24 w-full" /></div> : editing && (detail.isError || !detail.data) ? (
           <div role="alert" className="space-y-3 p-4"><p className="text-sm text-destructive">{getProjectError(detail.error)}</p><Button variant="outline" onClick={() => void detail.refetch()}>Retry</Button></div>
-        ) : <ProjectForm key={projectId ?? "create"} project={detail.data} pending={pending} error={mutation.error} onSave={save} onClose={onClose} />}
+        ) : <ProjectForm key={projectId ?? "create"} project={detail.data} pending={pending} error={mutation.error} onSave={save} onClose={lifecycle.close} />}
       </SheetContent>
     </Sheet>
   );
@@ -97,15 +97,15 @@ function ProjectForm({ project, pending, error, onSave, onClose }: {
             <Label>Members (optional)</Label>
             <ProjectUserPicker label="Project members" multiple selected={members} disabled={pending} onChange={(users) => { setMembers(users); setValue("member_ids", users.map((user) => user.id), { shouldValidate: true }); }} />
             {errors.member_ids && <p role="alert" className="text-sm text-destructive">{errors.member_ids.message}</p>}
-            <p className="text-xs text-muted-foreground">You can add members later.</p>
+            <p className="text-xs text-muted-foreground"><span className="system-copy">You can add members later.</span></p>
           </div>
         )}
         {error != null && <p role="alert" className="text-sm text-destructive">{getProjectError(error)}</p>}
       </div>
-      <div className="flex justify-end gap-3 border-t p-4">
-        <Button type="button" variant="outline" disabled={pending} onClick={onClose}>Cancel</Button>
+      <SheetFooter>
+        <Button type="button" variant="outline" disabled={pending} onClick={onClose}><span className="system-copy">Cancel</span></Button>
         <Button type="submit" disabled={pending}>{pending ? "Saving..." : project ? "Save changes" : "Create project"}</Button>
-      </div>
+      </SheetFooter>
     </form>
   );
 }

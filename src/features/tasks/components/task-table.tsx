@@ -9,31 +9,34 @@ import { taskStatusLabels, taskTypeLabels, taskCategoryLabels } from "../task.co
 export function TaskStatusBadge({ status }: { status: TaskStatus }) {
   return (
     <Badge
+      className={`h-6 w-28 justify-center text-[11px] ${status === "PROGRESS" ? "bg-[#e0effc] text-[#10121a] dark:bg-blue" : ""}`}
       variant={
         status === "DONE"
-          ? "default"
+          ? "success"
           : status === "BLOCKED"
             ? "destructive"
             : status === "OPEN"
-              ? "outline"
-              : "secondary"
+              ? "neutral"
+              : status === "PROGRESS"
+                ? "default"
+                : "secondary"
       }
     >
-      {taskStatusLabels[status]}
+      {status === "PENDING" ? "Awaiting approval" : taskStatusLabels[status]}
     </Badge>
   );
 }
 
 export function TaskTable({ tasks, onSelect }: { tasks: Task[]; onSelect: (id: string) => void }) {
   return (
-    <div className="overflow-x-auto rounded-lg border-2 border-border bg-card shadow-neo-sm">
+    <div className="overflow-x-auto bg-card">
       <table className="w-full min-w-[740px] text-left text-sm">
         <thead className="border-b-2 border-border bg-muted text-xs text-muted-foreground">
           <tr>
             {["Task", "Project", "Assignee", "Status", "Checklist", "Due date", ""].map(
               (label, index) => (
                 <th key={index} scope="col" className="px-3 py-3 font-semibold">
-                  {label || <span className="sr-only">Open</span>}
+                  {label || <span className="sr-only"><span className="system-copy">Open</span></span>}
                 </th>
               ),
             )}
@@ -41,13 +44,20 @@ export function TaskTable({ tasks, onSelect }: { tasks: Task[]; onSelect: (id: s
         </thead>
         <tbody className="divide-y divide-border">
           {tasks.map((task) => (
-            <tr key={task.id} className="hover:bg-muted/50">
+            <tr
+              key={task.id}
+              className="cursor-pointer transition-colors hover:bg-muted/50"
+              onClick={() => onSelect(task.id)}
+            >
               <td className="min-w-48 px-3 py-3">
                 <p className="font-mono text-xs text-muted-foreground">{task.code}</p>
                 <button
                   type="button"
                   className="break-words text-left font-semibold hover:underline focus-visible:underline"
-                  onClick={() => onSelect(task.id)}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onSelect(task.id);
+                  }}
                 >
                   {task.title}
                 </button>
@@ -59,7 +69,7 @@ export function TaskTable({ tasks, onSelect }: { tasks: Task[]; onSelect: (id: s
               <td className="px-3 py-3">
                 {task.assignee.name}
                 {!task.assignee.is_active && (
-                  <span className="block text-xs text-muted-foreground">Inactive</span>
+                  <span className="block text-xs text-muted-foreground"><span className="system-copy">Inactive</span></span>
                 )}
               </td>
               <td className="px-3 py-3">
@@ -74,7 +84,10 @@ export function TaskTable({ tasks, onSelect }: { tasks: Task[]; onSelect: (id: s
                   variant="ghost"
                   size="icon-sm"
                   aria-label={`Open ${task.code}`}
-                  onClick={() => onSelect(task.id)}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onSelect(task.id);
+                  }}
                 >
                   <ChevronRightIcon />
                 </Button>

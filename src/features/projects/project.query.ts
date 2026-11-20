@@ -10,8 +10,9 @@ export const projectKeys = {
   members: (id: string) => ["projects", "members", id] as const,
 };
 
-export function useProjects(params: ProjectListParams) {
+export function useProjects(params: ProjectListParams, enabled = true) {
   return useQuery({
+    enabled,
     queryKey: projectKeys.list(params),
     queryFn: ({ signal }) => getProjects(params, signal),
   });

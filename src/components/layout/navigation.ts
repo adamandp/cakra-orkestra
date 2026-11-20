@@ -1,11 +1,15 @@
 import {
   ChartBarIcon,
+  CalendarCheckIcon,
+  BellIcon,
+  StickyNoteIcon,
+  ActivityIcon,
   CircleHelpIcon,
   FileTextIcon,
   FolderIcon,
   LayoutDashboardIcon,
-  ListIcon,
-  UsersIcon,
+  HistoryIcon,
+  ClipboardListIcon,
   UsersRoundIcon,
   type LucideIcon,
 } from "lucide-react";
@@ -31,21 +35,30 @@ export const navigation: NavigationGroup[] = [
     label: "Workspace",
     items: [
       { title: "My Focus", url: "/my-focus", icon: LayoutDashboardIcon, roles: allRoles },
-      { title: "PM & Team Pulse", url: "/team-pulse", icon: UsersIcon, roles: adminOnly },
-      { title: "Projects", url: "/projects", icon: FolderIcon, roles: allRoles },
-      { title: "Manage Tasks", url: "/tasks", icon: ListIcon, roles: allRoles },
+      { title: "Task History", url: "/task-history", icon: HistoryIcon, roles: allRoles },
+      { title: "Task Management", url: "/team-pulse", icon: ClipboardListIcon, roles: adminOnly },
+      { title: "Projects Management", url: "/projects", icon: FolderIcon, roles: adminOnly },
     ],
   },
   {
     label: "Insights",
     items: [
       { title: "Changelog", url: "/changelogs", icon: FileTextIcon, roles: allRoles },
-      { title: "Scores", url: "/scores", icon: ChartBarIcon, roles: allRoles },
+      { title: "Scores", url: "/scores", icon: ChartBarIcon, roles: adminOnly },
     ],
   },
   {
     label: "Administration",
     items: [{ title: "User Management", url: "/users", icon: UsersRoundIcon, roles: adminOnly }],
+  },
+  {
+    label: "Activity",
+    items: [
+      { title: "Notifications", url: "/notifications", icon: BellIcon, roles: allRoles },
+      { title: "Attendance", url: "/attendance", icon: CalendarCheckIcon, roles: allRoles },
+      { title: "Team Wall", url: "/team-wall", icon: StickyNoteIcon, roles: allRoles },
+      { title: "Activity Log", url: "/activity-logs", icon: ActivityIcon, roles: allRoles },
+    ],
   },
   {
     label: "Resources",
@@ -69,6 +82,7 @@ export function getNavigationForRole(role: Role): NavigationGroup[] {
 }
 
 export function canAccessRoute(pathname: string, role: Role): boolean {
+  if (isNavigationActive(pathname, "/tasks")) return allRoles.includes(role);
   const item = navigation
     .flatMap((group) => group.items)
     .filter((item) => isNavigationActive(pathname, item.url))

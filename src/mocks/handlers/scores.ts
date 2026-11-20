@@ -11,7 +11,7 @@ import { isAssessmentRunning } from "@/features/tasks/task-ai-result.constants";
 import { getMockUser } from "../data/auth-store";
 import { findMockProject } from "../data/projects";
 import { getMockTasks, type MockTask } from "../data/tasks";
-import { findMockUser } from "../data/users";
+import { findMockUser, getMockUsers } from "../data/users";
 import { requireMockAdmin } from "./authorization";
 
 function getUserTasks(id: string) {
@@ -96,6 +96,17 @@ function unauthorized() {
 }
 
 export const scoreHandlers = [
+  http.get("*/api/scores/leaderboard", ({ request }) => {
+    if (!getMockUser(request)) return unauthorized();
+    const result = scorePeriodSchema.safeParse({ month: new URL(request.url).searchParams.get("month") ?? undefined });
+    if (!result.success) return invalidFilters();
+    const { month } = result.data;
+    const rows = getMockUsers().filter(user => user.is_active).map(user => {
+      const tasks = getUserTasks(user.id);
+      return { ...getSummary(user.id, month, tasks, getHistory(tasks, month)), name: user.name, username: user.username, avatar_url: user.avatar_url };
+    }).sort((a,b) => b.approved_points - a.approved_points || b.completed_tasks - a.completed_tasks || a.name.localeCompare(b.name));
+    return HttpResponse.json({ data: rows.map((row, index) => ({ ...row, rank: index + 1 })) });
+  }),
   http.get("*/api/scores/me", ({ request }) => {
     const user = getMockUser(request);
     if (!user) return unauthorized();

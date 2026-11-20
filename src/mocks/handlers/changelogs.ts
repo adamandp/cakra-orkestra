@@ -1,4 +1,5 @@
-import { http, HttpResponse } from "msw";
+import { HttpResponse } from "msw";
+import { http } from "./audited-http";
 import {
   changelogListSchema,
   createChangelogSchema,

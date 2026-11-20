@@ -1,12 +1,13 @@
 "use client";
 
+import { PageHeader } from "@/components/shared/page-header";
+import { Pagination } from "@/components/shared/pagination";
+
 import { useState } from "react";
-import { PlusIcon, ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
+import { PlusIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { PageHeader } from "@/components/shared/page-header";
 import { useAuth } from "@/providers/auth-provider";
-import type { Changelog } from "@/interface/changelog.interface";
 import { useChangelogs } from "../changelog.query";
 import { getChangelogError } from "../changelog.api";
 import { CHANGELOG_PAGE_SIZE } from "../changelog.constants";
@@ -20,27 +21,26 @@ import { ChangelogFormSheet } from "./changelog-form-sheet";
 import { ChangelogDetail } from "./changelog-detail";
 
 type SheetState =
-  { action: "create" } | { action: "detail"; id: string } | { action: "edit"; entry: Changelog };
+  { action: "create" } | { action: "detail"; id: string };
 
 export function ChangelogManagement() {
   const { user } = useAuth();
   const isAdmin = user?.role === "ADMIN";
   const [filters, setFilters] = useState<ChangelogFilters>(defaultChangelogFilters);
   const [offset, setOffset] = useState(0);
+  const [pageSize, setPageSize] = useState(CHANGELOG_PAGE_SIZE);
   const [sheet, setSheet] = useState<SheetState | null>(null);
   const query = useChangelogs(
     {
       q: filters.q.trim() || undefined,
       project_id: filters.project?.id,
-      limit: CHANGELOG_PAGE_SIZE,
+      limit: pageSize,
       offset,
     },
     Boolean(user),
   );
   const entries = query.data?.items ?? [];
   const total = query.data?.total ?? 0;
-  const page = Math.floor(offset / CHANGELOG_PAGE_SIZE) + 1;
-  const pageCount = Math.max(1, Math.ceil(total / CHANGELOG_PAGE_SIZE));
   function changeFilters(next: ChangelogFilters) {
     setFilters(next);
     setOffset(0);
@@ -61,17 +61,14 @@ export function ChangelogManagement() {
   }
   return (
     <div className="space-y-4">
-      <PageHeader
-        title="Changelog"
-        description="Track application releases and changes."
-        actions={
+      <PageHeader title="Changelog" description="Track application releases and changes." actions={
           isAdmin ? (
             <Button onClick={() => setSheet({ action: "create" })}>
               <PlusIcon /> New release
             </Button>
           ) : undefined
-        }
-      />
+        } />
+
       <ChangelogToolbar filters={filters} onChange={changeFilters} />
       {query.isError ? (
         <div role="alert" className="space-y-3 rounded-lg border-2 border-border p-6 text-center">
@@ -99,38 +96,7 @@ export function ChangelogManagement() {
               No releases found.
             </div>
           )}
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <p aria-live="polite" className="text-sm text-muted-foreground">
-              {query.isPending
-                ? "Loading releases..."
-                : entries.length
-                  ? `Showing ${offset + 1}–${offset + entries.length} of ${total} releases`
-                  : `0 releases on this page (${total} total)`}
-            </p>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="icon-sm"
-                aria-label="Previous releases"
-                disabled={query.isPending || offset === 0}
-                onClick={() => setOffset(Math.max(0, offset - CHANGELOG_PAGE_SIZE))}
-              >
-                <ChevronLeftIcon />
-              </Button>
-              <span className="text-sm tabular-nums">
-                {query.isPending ? `Page ${page}` : `${page} / ${pageCount}`}
-              </span>
-              <Button
-                variant="outline"
-                size="icon-sm"
-                aria-label="Next releases"
-                disabled={query.isPending || offset + CHANGELOG_PAGE_SIZE >= total}
-                onClick={() => setOffset(offset + CHANGELOG_PAGE_SIZE)}
-              >
-                <ChevronRightIcon />
-              </Button>
-            </div>
-          </div>
+          <Pagination total={total} limit={pageSize} offset={offset} count={entries.length} disabled={query.isFetching} onOffsetChange={setOffset} onLimitChange={(size) => { setPageSize(size); setOffset(0); }} />
         </>
       )}
       {isAdmin && sheet?.action === "create" && (
@@ -146,18 +112,7 @@ export function ChangelogManagement() {
           id={sheet.id}
           isAdmin={isAdmin}
           onClose={close}
-          onEdit={(entry) => {
-            if (isAdmin) setSheet({ action: "edit", entry });
-          }}
           onDeleted={deleted}
-        />
-      )}
-      {isAdmin && sheet?.action === "edit" && (
-        <ChangelogFormSheet
-          key={sheet.entry.id}
-          entry={sheet.entry}
-          onClose={() => inspect(sheet.entry.id)}
-          onSaved={saved}
         />
       )}
     </div>

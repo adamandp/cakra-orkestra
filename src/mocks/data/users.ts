@@ -1,3 +1,4 @@
+import { attendanceToday } from "@/interface/attendance.interface";
 import type { AuthUser } from "@/interface/auth.interface";
 import type { CreateUserInput, User } from "@/interface/user.interface";
 import type { UserRole } from "@/interface/role.interface";
@@ -39,10 +40,30 @@ const seedUsers: MockUser[] = [
   },
 ];
 
+export const demoTeamUsers: MockUser[] = ["Raka Pratama", "Nadia Putri", "Kevin Wijaya", "Sarah Ananda", "Dimas Saputra", "Alya Rahma", "Fajar Nugroho", "Maya Sari", "Rizky Ramadhan", "Dewi Lestari", "Andi Firmansyah", "Sinta Amelia", "Bima Arya", "Nina Kartika", "Arif Hidayat", "Tiara Safitri", "Reza Maulana", "Vina Aprilia", "Dani Kurniawan"].map((name, i) => ({
+  ...seedUsers[1], id: `00000000-0000-4000-8000-000000000${601 + i}`,
+  name, username: name.toLowerCase().replace(/ /g, "."),
+}));
+
 export function getMockUsers(): MockUser[] {
   const stored = localStorage.getItem(USERS_KEY);
-  if (stored === null) return seedUsers.map((user) => ({ ...user }));
-  return JSON.parse(stored) as MockUser[];
+  const users: MockUser[] = stored === null ? seedUsers.map((user) => ({ ...user })) : JSON.parse(stored);
+  if (!localStorage.getItem("cakra-orkestra:demo-team-users:v1")) {
+    users.push(...demoTeamUsers.filter((user) => !users.some((item) => item.id === user.id || item.username === user.username)));
+    saveMockUsers(users);
+    localStorage.setItem("cakra-orkestra:demo-team-users:v1", "1");
+  }
+  if (!localStorage.getItem("cakra-orkestra:demo-birthdays:v1")) {
+    const today=attendanceToday();
+    const upcoming=new Date(today+"T00:00:00Z"); upcoming.setUTCDate(upcoming.getUTCDate()+3);
+    [today.slice(5),upcoming.toISOString().slice(5,10)].forEach((md,i)=>{
+      const user=users.find(u=>u.id===demoTeamUsers[5+i]?.id);
+      if(user&&!user.birth_date)user.birth_date="2000-"+md;
+    });
+    saveMockUsers(users);
+    localStorage.setItem("cakra-orkestra:demo-birthdays:v1","1");
+  }
+  return users;
 }
 
 function saveMockUsers(users: MockUser[]) {

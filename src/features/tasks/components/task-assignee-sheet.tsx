@@ -5,8 +5,9 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
+  useSheetLifecycle,
   Sheet,
-  SheetContent,
+  SheetContent, SheetFooter,
   SheetDescription,
   SheetHeader,
   SheetTitle,
@@ -17,7 +18,7 @@ import type { TaskDetail } from "@/interface/task.interface";
 import { useUpdateTaskAssignee } from "../task.mutation";
 import { getTaskError } from "../task.api";
 import { TaskSelect } from "./task-select";
-import { taskAssigneeOptions } from "./task-project-picker";
+import { useTaskAssigneeOptions } from "./task-project-picker";
 
 export function TaskAssigneeSheet({
   task,
@@ -33,33 +34,35 @@ export function TaskAssigneeSheet({
   const [assigneeId, setAssigneeId] = useState(task.assignee_id);
   const project = useProject(task.project_id);
   const mutation = useUpdateTaskAssignee(task.id);
-  const options = taskAssigneeOptions(project.data ?? null, actorId);
+  const options = useTaskAssigneeOptions(project.data ?? null, actorId);
   const valid = options.some((option) => option.value === assigneeId);
+  const lifecycle = useSheetLifecycle(onClose);
   const pending = mutation.isPending;
   async function save() {
     try {
       const result = await mutation.mutateAsync({ assignee_id: assigneeId });
       toast.success("Assignee updated");
-      onSaved(result.id);
+      lifecycle.closeThen(() => onSaved(result.id));
     } catch {
       /* Display error below. */
     }
   }
   return (
     <Sheet
-      open
+      open={lifecycle.open}
+      onOpenChangeComplete={lifecycle.onOpenChangeComplete}
       onOpenChange={(open) => {
-        if (!open && !pending) onClose();
+        if (!open && !pending) lifecycle.close();
       }}
     >
       <SheetContent className="w-full border-l-2 border-border sm:max-w-md">
         <SheetHeader>
-          <SheetTitle>Change assignee</SheetTitle>
+          <SheetTitle><span className="system-copy">Change assignee</span></SheetTitle>
           <SheetDescription>
             {task.code} — {task.title}
           </SheetDescription>
         </SheetHeader>
-        <div className="space-y-4 p-4">
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
           <p className="text-sm">
             Current assignee: {task.assignee.name}
             {!task.assignee.is_active && " (inactive)"}
@@ -91,10 +94,11 @@ export function TaskAssigneeSheet({
               {getTaskError(mutation.error)}
             </p>
           )}
-          <div className="flex justify-end gap-3">
-            <Button variant="outline" disabled={pending} onClick={onClose}>
+        </div>
+        <SheetFooter>
+            <Button variant="outline" disabled={pending} onClick={lifecycle.close}><span className="system-copy">
               Cancel
-            </Button>
+            </span></Button>
             <Button
               disabled={
                 pending ||
@@ -108,8 +112,7 @@ export function TaskAssigneeSheet({
             >
               {pending ? "Saving..." : "Save assignee"}
             </Button>
-          </div>
-        </div>
+        </SheetFooter>
       </SheetContent>
     </Sheet>
   );

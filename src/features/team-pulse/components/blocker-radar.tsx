@@ -1,17 +1,16 @@
 "use client";
 
+import { ArrowRightIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DashboardTaskList } from "@/features/dashboards/components/dashboard-task-list";
 
 export function BlockerRadar({ onInspect }: { onInspect: (id: string) => void }) {
   return (
-    <section className="space-y-3">
-      <div>
-        <h2 className="text-lg font-bold">Blocker radar</h2>
-        <p className="text-sm text-muted-foreground">Tasks that need assistance from the team.</p>
-      </div>
       <DashboardTaskList
+        title="Blocker radar"
+        description="Tasks that need assistance from the team."
         filters={{ status: "BLOCKED" }}
+        onInspect={onInspect}
         showAssignee
         emptyMessage="No blocked tasks."
         renderContext={(task) => (
@@ -20,11 +19,10 @@ export function BlockerRadar({ onInspect }: { onInspect: (id: string) => void })
           </p>
         )}
         renderActions={(task) => (
-          <Button size="sm" variant="outline" onClick={() => onInspect(task.id)}>
-            Inspect
+          <Button size="icon-sm" variant="ghost" className="!size-8" aria-label="Inspect task" onClick={() => onInspect(task.id)}>
+            <ArrowRightIcon />
           </Button>
         )}
       />
-    </section>
   );
 }

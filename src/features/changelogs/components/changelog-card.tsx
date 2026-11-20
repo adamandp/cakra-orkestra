@@ -12,7 +12,7 @@ export function ChangelogCard({
   onSelect: (id: string) => void;
 }) {
   return (
-    <article className="space-y-3 rounded-lg border-2 border-border bg-card p-4 shadow-neo-sm">
+    <article className="cursor-pointer space-y-3 rounded-lg border-2 border-border bg-card p-4 shadow-neo-sm hover:bg-muted/30" onClick={() => onSelect(entry.id)}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0 space-y-2">
           <div className="flex flex-wrap items-center gap-2">
@@ -23,8 +23,8 @@ export function ChangelogCard({
             {formatReleaseDate(entry.released_at)} · Recorded by {entry.creator.name}
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={() => onSelect(entry.id)}>
-          View release <ArrowRightIcon />
+        <Button type="button" variant="ghost" size="icon-sm" pressAnimation={false} aria-label={`View release ${entry.version}`} onClick={(event) => { event.stopPropagation(); onSelect(entry.id); }}>
+          <ArrowRightIcon />
         </Button>
       </div>
       {entry.description && (
@@ -39,11 +39,12 @@ export function ChangelogCard({
           ))}
         </ul>
       ) : (
-        <p className="text-sm text-muted-foreground">No change items recorded.</p>
+        <p className="text-sm text-muted-foreground"><span className="system-copy">No change items recorded.</span></p>
       )}
       {entry.commit_url && isHttpUrl(entry.commit_url) && (
         <a
           href={entry.commit_url}
+          onClick={(event) => event.stopPropagation()}
           target="_blank"
           rel="noopener noreferrer"
           className="inline-flex max-w-full items-center gap-2 break-all text-sm text-muted-foreground hover:underline"

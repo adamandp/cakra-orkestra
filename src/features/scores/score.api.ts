@@ -2,6 +2,7 @@ import axios from "axios";
 import { axiosInstance } from "@/lib/axios";
 import type { WebResponse } from "@/interface/common.interface";
 import type {
+  LeaderboardEntry,
   ScoreHistoryParams,
   ScoreHistoryResponse,
   ScorePeriodParams,
@@ -38,4 +39,9 @@ export function getScoreError(error: unknown) {
     return error.response?.data?.message || "Unable to reach the server. Please try again.";
   }
   return "Something went wrong. Please try again.";
+}
+
+export async function getLeaderboard(params: ScorePeriodParams, signal?: AbortSignal) {
+  const { data } = await axiosInstance.get<WebResponse<LeaderboardEntry[]>>("/scores/leaderboard", { params, signal });
+  return data.data;
 }

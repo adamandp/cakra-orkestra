@@ -1,4 +1,5 @@
-import { http, HttpResponse } from "msw";
+import { HttpResponse } from "msw";
+import { http } from "./audited-http";
 import { assessmentRubric } from "@/features/tasks/task-ai-result.constants";
 import { emptyTaskActionSchema, rejectTaskSchema } from "@/features/tasks/task.schema";
 import { getMockUser } from "../data/auth-store";

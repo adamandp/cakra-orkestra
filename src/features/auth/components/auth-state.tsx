@@ -8,13 +8,13 @@ export function AuthState() {
   return (
     <div className="grid h-dvh place-items-center p-6 text-center">
       {loading ? (
-        <p role="status" className="font-bold">
+        <p role="status" className="font-bold"><span className="system-copy">
           Checking your session...
-        </p>
+        </span></p>
       ) : error ? (
         <div role="alert" className="space-y-3">
-          <p className="font-bold">Unable to verify your session.</p>
-          <Button onClick={retry}>Try again</Button>
+          <p className="font-bold"><span className="system-copy">Unable to verify your session.</span></p>
+          <Button onClick={retry}><span className="system-copy">Try again</span></Button>
         </div>
       ) : null}
     </div>

@@ -1,19 +1,23 @@
+import { celebrateSubmission } from "@/lib/celebration";
 import { useMutation, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { scoreKeys } from "@/features/scores/score.query";
 import type {
   TaskDetail,
   CreateTaskInput,
   UpdateTaskInput,
+  UpdateTaskDescriptionInput,
   UpdateTaskAssigneeInput,
   CreateTaskChecklistInput,
   UpdateTaskChecklistInput,
   OrderTaskChecklistsInput,
   BlockTaskInput,
   CreateTaskLinkInput,
+  UpdateTaskEvidenceInput,
 } from "@/interface/task.interface";
 import {
   createTask,
   updateTask,
+  updateTaskDescription,
   deleteTask,
   updateTaskAssignee,
   createTaskChecklist,
@@ -27,6 +31,7 @@ import {
   createTaskLink,
   uploadTaskEvidence,
   deleteTaskEvidence,
+  updateTaskEvidence,
 } from "./task.api";
 import { taskKeys } from "./task.query";
 
@@ -71,6 +76,14 @@ export function useUpdateTask(id: string) {
   return useMutation({
     mutationKey: taskKeys.mutations(id),
     mutationFn: (input: UpdateTaskInput) => updateTask(id, input),
+    onSuccess: (task) => syncTask(client, task),
+  });
+}
+export function useUpdateTaskDescription(id: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationKey: taskKeys.mutations(id),
+    mutationFn: (input: UpdateTaskDescriptionInput) => updateTaskDescription(id, input),
     onSuccess: (task) => syncTask(client, task),
   });
 }
@@ -121,6 +134,26 @@ export function useUpdateTaskChecklist(id: string) {
     mutationKey: taskKeys.mutations(id),
     mutationFn: ({ itemId, input }: { itemId: string; input: UpdateTaskChecklistInput }) =>
       updateTaskChecklist(id, itemId, input),
+    onMutate: async ({ itemId, input }) => {
+      if (input.is_completed === undefined) return;
+      const key = taskKeys.detail(id);
+      await client.cancelQueries({ queryKey: key });
+      const previous = client.getQueryData<TaskDetail>(key);
+      if (previous) {
+        const checklists = previous.checklists.map((item) =>
+          item.id === itemId ? { ...item, is_completed: input.is_completed! } : item,
+        );
+        client.setQueryData(key, {
+          ...previous,
+          checklists,
+          checklist_completed: checklists.filter((item) => item.is_completed).length,
+        });
+      }
+      return { previous };
+    },
+    onError: (_error, _variables, context) => {
+      if (context?.previous) client.setQueryData(taskKeys.detail(id), context.previous);
+    },
     onSuccess: (task) => syncTask(client, task),
   });
 }
@@ -170,7 +203,10 @@ export function useSubmitTask(id: string) {
   return useMutation({
     mutationKey: taskKeys.mutations(id),
     mutationFn: () => submitTask(id),
-    onSuccess: (task) => syncTask(client, task),
+    onSuccess: (task) => {
+      syncTask(client, task);
+      celebrateSubmission();
+    },
   });
 }
 export function useCreateTaskLink(id: string) {
@@ -187,6 +223,15 @@ export function useUploadTaskEvidence(id: string) {
     mutationKey: taskKeys.mutations(id),
     mutationFn: ({ file, title }: { file: File; title?: string }) =>
       uploadTaskEvidence(id, file, title),
+    onSuccess: (task) => syncTask(client, task),
+  });
+}
+export function useUpdateTaskEvidence(id: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationKey: taskKeys.mutations(id),
+    mutationFn: ({ evidenceId, input }: { evidenceId: string; input: UpdateTaskEvidenceInput }) =>
+      updateTaskEvidence(id, evidenceId, input),
     onSuccess: (task) => syncTask(client, task),
   });
 }

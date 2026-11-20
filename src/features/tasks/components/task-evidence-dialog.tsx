@@ -62,12 +62,13 @@ export function TaskEvidenceDialog({
   return (
     <form
       noValidate
-      className="space-y-3 rounded-md border-2 border-border p-3"
+      className="space-y-4 border-t border-dashed border-border pt-4"
       onSubmit={(event) => {
         event.preventDefault();
         if (!busy) void submit();
       }}
     >
+      <h4 className="text-sm font-semibold"><span className="system-copy">New attachment</span></h4>
       <div role="group" aria-label="Evidence type" className="flex gap-2">
         <Button
           type="button"
@@ -128,7 +129,7 @@ export function TaskEvidenceDialog({
             disabled={busy}
             onChange={(event) => setFile(event.target.files?.[0] ?? null)}
           />
-          <p className="text-xs text-muted-foreground">Maximum 20 MiB per file. Any file type.</p>
+          <p className="text-xs text-muted-foreground"><span className="system-copy">Maximum 20 MiB per file. Any file type.</span></p>
         </div>
       )}
       {error && (
@@ -136,10 +137,10 @@ export function TaskEvidenceDialog({
           {error}
         </p>
       )}
-      <div className="flex justify-end gap-2">
-        <Button type="button" variant="outline" disabled={busy} onClick={onCancel}>
+      <div className="flex flex-wrap justify-end gap-3 border-t border-border pt-4 pb-2 pr-1">
+        <Button type="button" variant="outline" disabled={busy} onClick={onCancel}><span className="system-copy">
           Cancel
-        </Button>
+        </span></Button>
         <Button type="submit" disabled={busy || (type === "LINK" ? !url.trim() : !file)}>
           {busy ? "Saving..." : "Add evidence"}
         </Button>

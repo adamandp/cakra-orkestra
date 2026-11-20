@@ -43,6 +43,7 @@ export const createTaskSchema = taskFields
     checklists: z.array(createTaskChecklistSchema).default([]),
   })
   .strict();
+export const updateTaskDescriptionSchema = z.object({ description }).strict();
 export const updateTaskSchema = taskFields
   .partial()
   .strict()
@@ -51,6 +52,9 @@ export const updateTaskAssigneeSchema = z.object({ assignee_id: id }).strict();
 export const taskListSchema = z.object({
   q: z.string().trim().max(255).optional(),
   scope: z.literal("me").optional(),
+  completed_month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/).optional(),
+  exclude_status: taskStatusSchema.optional(),
+  sort: z.enum(["due_asc", "due_desc", "recent"]).optional(),
   project_id: id.optional(),
   assignee_id: id.optional(),
   status: taskStatusSchema.optional(),
@@ -90,6 +94,12 @@ export const createTaskLinkSchema = z
           return false;
         }
       }, "Use an HTTP or HTTPS URL"),
+  })
+  .strict();
+export const updateTaskEvidenceSchema = createTaskLinkSchema
+  .extend({
+    title: evidenceTitle.unwrap().nullable(),
+    url: createTaskLinkSchema.shape.url.optional(),
   })
   .strict();
 export const presignTaskEvidenceSchema = z

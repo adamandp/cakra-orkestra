@@ -1,4 +1,4 @@
-export const CHANGELOG_PAGE_SIZE = 20;
+export const CHANGELOG_PAGE_SIZE = 10;
 
 export function formatReleaseDate(value: string) {
   return new Date(value).toLocaleString();

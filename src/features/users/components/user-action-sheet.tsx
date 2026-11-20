@@ -12,8 +12,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  useSheetLifecycle,
   Sheet,
-  SheetContent,
+  SheetContent, SheetFooter,
   SheetDescription,
   SheetHeader,
   SheetTitle,
@@ -41,6 +42,7 @@ export function UserActionSheet({
   const statusMutation = useUpdateUserStatus();
   const isRole = action === "role";
   const mutation = isRole ? roleMutation : statusMutation;
+  const lifecycle = useSheetLifecycle(onClose);
   const pending = mutation.isPending;
   const title = isRole ? "Change role" : user.is_active ? "Deactivate user" : "Activate user";
 
@@ -53,8 +55,7 @@ export function UserActionSheet({
         await statusMutation.mutateAsync({ id: user.id, input: { is_active: !user.is_active } });
         toast.success(user.is_active ? "User deactivated" : "User activated");
       }
-      onSaved();
-      onClose();
+      lifecycle.closeThen(() => { onSaved(); onClose(); });
     } catch {
       // Keep the confirmation sheet open and show the API error.
     }
@@ -62,9 +63,10 @@ export function UserActionSheet({
 
   return (
     <Sheet
-      open
+      open={lifecycle.open}
+      onOpenChangeComplete={lifecycle.onOpenChangeComplete}
       onOpenChange={(open) => {
-        if (!open && !pending) onClose();
+        if (!open && !pending) lifecycle.close();
       }}
     >
       <SheetContent className="w-full border-l-2 border-border sm:max-w-md">
@@ -74,7 +76,7 @@ export function UserActionSheet({
             {user.name} (@{user.username})
           </SheetDescription>
         </SheetHeader>
-        <div className="space-y-4 p-4">
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
           {isRole ? (
             <>
               <div className="space-y-2">
@@ -100,10 +102,10 @@ export function UserActionSheet({
                   </SelectContent>
                 </Select>
               </div>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm text-muted-foreground"><span className="system-copy">
                 Changing this role will apply the new access permissions and revoke the user&apos;s
                 existing session.
-              </p>
+              </span></p>
             </>
           ) : (
             <p className="text-sm">
@@ -117,10 +119,11 @@ export function UserActionSheet({
               {getUserError(mutation.error)}
             </p>
           )}
-          <div className="flex justify-end gap-3">
-            <Button variant="outline" disabled={pending} onClick={onClose}>
+        </div>
+        <SheetFooter>
+            <Button variant="outline" disabled={pending} onClick={lifecycle.close}><span className="system-copy">
               Cancel
-            </Button>
+            </span></Button>
             <Button
               variant={!isRole && user.is_active ? "destructive" : "default"}
               disabled={
@@ -131,8 +134,7 @@ export function UserActionSheet({
             >
               {pending ? "Saving..." : title}
             </Button>
-          </div>
-        </div>
+        </SheetFooter>
       </SheetContent>
     </Sheet>
   );

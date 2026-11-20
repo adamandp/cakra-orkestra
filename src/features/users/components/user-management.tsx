@@ -1,9 +1,10 @@
 "use client";
 
+import { PageHeader } from "@/components/shared/page-header";
+
 import { useState } from "react";
 import { PlusIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { PageHeader } from "@/components/shared/page-header";
 import type { User } from "@/interface/user.interface";
 import { useAuth } from "@/providers/auth-provider";
 import { useRoles, useUsers } from "../user.query";
@@ -11,7 +12,7 @@ import { getUserError } from "../user.api";
 import { UserTable } from "./user-table";
 import { UserToolbar, defaultUserFilters, type UserFilters } from "./user-toolbar";
 import { UserFormSheet } from "./user-form-sheet";
-import { UserActionSheet } from "./user-action-sheet";
+import { UserDetail } from "./user-detail";
 import type { UserAction } from "./user-columns";
 
 const PAGE_SIZE = 10;
@@ -22,13 +23,14 @@ export function UserManagement() {
   const { user } = useAuth();
   const [filters, setFilters] = useState<UserFilters>(defaultUserFilters);
   const [offset, setOffset] = useState(0);
+  const [pageSize, setPageSize] = useState(PAGE_SIZE);
   const [sheet, setSheet] = useState<ActiveSheet | null>(null);
 
   const usersQuery = useUsers({
     q: filters.q.trim() || undefined,
     role_id: filters.role_id === "all" ? undefined : filters.role_id,
     is_active: filters.status === "all" ? undefined : filters.status === "active",
-    limit: PAGE_SIZE,
+    limit: pageSize,
     offset,
   });
   const rolesQuery = useRoles();
@@ -40,7 +42,6 @@ export function UserManagement() {
   }
 
   function handleAction(action: UserAction, selectedUser: User) {
-    if (selectedUser.id === user?.id && action !== "edit") return;
     setSheet({ action, user: selectedUser });
   }
 
@@ -54,18 +55,15 @@ export function UserManagement() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="User Management"
-        description="Manage team members and their roles."
-        actions={
+      <PageHeader title="User Management" description="Manage team members and their roles." actions={
           <Button
             disabled={rolesQuery.isPending || rolesQuery.isError || roles.length === 0}
             onClick={() => setSheet({ action: "create" })}
           >
             <PlusIcon /> Add User
           </Button>
-        }
-      />
+        } />
+
       {rolesQuery.isError && (
         <div
           role="alert"
@@ -77,7 +75,10 @@ export function UserManagement() {
           </Button>
         </div>
       )}
+      <section className="explorer-panel">
+      <div className="border-b-2 border-border p-4">
       <UserToolbar filters={filters} roles={roles} onChange={handleFilterChange} />
+      </div>
       {usersQuery.isError ? (
         <div role="alert" className="space-y-3 rounded-lg border-2 border-border p-6 text-center">
           <p className="text-sm text-destructive">{getUserError(usersQuery.error)}</p>
@@ -90,34 +91,18 @@ export function UserManagement() {
           data={usersQuery.data}
           loading={usersQuery.isPending}
           currentUserId={user?.id ?? ""}
-          limit={PAGE_SIZE}
+          limit={pageSize}
           offset={offset}
           onOffsetChange={setOffset}
+          onLimitChange={(size) => { setPageSize(size); setOffset(0); }}
           onAction={handleAction}
         />
       )}
+      </section>
       {sheet?.action === "create" && (
         <UserFormSheet roles={roles} onClose={closeSheet} onSaved={handleSaved} />
       )}
-      {sheet?.action === "edit" && (
-        <UserFormSheet
-          key={sheet.user.id}
-          userId={sheet.user.id}
-          roles={roles}
-          onClose={closeSheet}
-          onSaved={handleSaved}
-        />
-      )}
-      {sheet && (sheet.action === "role" || sheet.action === "status") && (
-        <UserActionSheet
-          key={`${sheet.action}-${sheet.user.id}`}
-          action={sheet.action}
-          user={sheet.user}
-          roles={roles}
-          onClose={closeSheet}
-          onSaved={handleSaved}
-        />
-      )}
+      {sheet?.action === "detail" && <UserDetail key={sheet.user.id} id={sheet.user.id} currentUserId={user?.id ?? ""} roles={roles} onClose={closeSheet} />}
     </div>
   );
 }

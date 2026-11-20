@@ -1,4 +1,4 @@
-# Tasks — 16 endpoint
+# Tasks — 17 endpoint
 
 | Method   | Endpoint                                                                  |
 | -------- | ------------------------------------------------------------------------- |
@@ -6,6 +6,7 @@
 | `POST`   | [`/api/tasks`](#post-apitasks)                                            |
 | `GET`    | [`/api/tasks/:id`](#get-apitasksid)                                       |
 | `PATCH`  | [`/api/tasks/:id`](#patch-apitasksid)                                     |
+| `PATCH` | [`/api/tasks/:id/description`](#patch-apitasksiddescription) |
 | `DELETE` | [`/api/tasks/:id`](#delete-apitasksid)                                    |
 | `PATCH`  | [`/api/tasks/:id/assignee`](#patch-apitasksidassignee)                    |
 | `GET`    | [`/api/tasks/:id/checklists`](#get-apitasksidchecklists)                  |
@@ -26,10 +27,12 @@ Sumber: [handler](../../src/mocks/handlers/tasks.ts), [schema](../../src/feature
 - Semua endpoint membutuhkan Bearer; kegagalan auth menghasilkan 401 `Unauthorized`.
 - ADMIN dapat melihat semua task; MEMBER hanya task dengan `assignee_id` miliknya, termasuk untuk mutasi/checklist yang diizinkan. Task hilang, soft-deleted, atau tidak boleh dilihat menghasilkan 404 `Task not found`.
 - Edit, delete, reassignment, dan mutasi checklist hanya tersedia ketika task berstatus `OPEN`, `PROGRESS`, atau `BLOCKED`, dan project masih `ACTIVE`. Selain itu: 409 `Task is locked`.
-- Delete task dan reassignment khusus ADMIN (403 `Forbidden` untuk MEMBER).
+- Edit task umum, delete task, reassignment dan hapus checklist khusus ADMIN (403 `Forbidden` untuk MEMBER).
 - Body create/update/checklist bersifat strict: field yang tidak didukung ditolak. Update minimal satu field.
 
 ## GET /api/tasks
+
+Query opsional `exclude_status` (TaskStatus) mengecualikan status sebelum pagination. My Focus: `scope=me&exclude_status=DONE`; Task History: `scope=me&status=DONE`.
 
 | Query opsional | Format / perilaku                                                    |
 | -------------- | -------------------------------------------------------------------- |
@@ -85,7 +88,7 @@ Tanpa body/query. 200: `{ "data": TaskDetail }`. Mengembalikan checklist terurut
 
 ## PATCH /api/tasks/:id
 
-Subset `title`, `description`, `task_type`, `task_category`, `due_date`, dengan validasi seperti create. Tidak menerima project_id, assignee_id, task_status, atau checklists.
+ADMIN only. Subset `title`, `description`, `task_type`, `task_category`, `due_date`, dengan validasi seperti create. Tidak menerima project_id, assignee_id, task_status, atau checklists.
 
 ```json
 { "title": "Update session API", "due_date": "2026-12-01" }
@@ -93,6 +96,16 @@ Subset `title`, `description`, `task_type`, `task_category`, `due_date`, dengan 
 
 200: `{ "message": "Task updated", "data": TaskDetail }`.
 Error: aturan umum dan 400 pesan validasi. Mock hanya memperbarui field beserta updated_at; AI input snapshot tidak dihitung ulang.
+
+## PATCH /api/tasks/:id/description
+
+ADMIN atau MEMBER assignee. Task harus editable dan project ACTIVE. Body strict:
+
+```json
+{ "description": "Updated task description" }
+```
+
+Description wajib, trim dan tidak kosong. 200: `{ "message": "Description updated", "data": TaskDetail }`. Aturan akses umum berlaku; snapshot AI tidak dihitung ulang.
 
 ## DELETE /api/tasks/:id
 
@@ -139,13 +152,13 @@ Minimal salah satu field berikut:
 { "title": "Review session expiry", "is_completed": true }
 ```
 
-Title trim dan tidak kosong; is_completed boolean. 200: `{ "message": "Checklist updated", "data": TaskDetail }`.
+Title trim dan tidak kosong; is_completed boolean. Perubahan is_completed hanya saat task berstatus PROGRESS. 200: `{ "message": "Checklist updated", "data": TaskDetail }`.
 Berubah ke completed mengisi completed_at; dibuka kembali mengosongkannya. Mengirim nilai completion yang sama mempertahankan timestamp completion.
-Error: aturan umum; 400 pesan validasi; 404 `Checklist not found`.
+Error: aturan umum; 400 pesan validasi; 404 `Checklist not found`; 409 `Task must be in progress to change checklist completion`.
 
 ## DELETE /api/tasks/:id/checklists/:itemId
 
-Tanpa body/query. 200: `{ "message": "Checklist removed", "data": TaskDetail }`. Urutan item tersisa dinomori ulang mulai 0.
+ADMIN only. Tanpa body/query. 200: `{ "message": "Checklist removed", "data": TaskDetail }`. Urutan item tersisa dinomori ulang mulai 0.
 Error: aturan umum; 404 `Checklist not found`.
 
 ## PUT /api/tasks/:id/checklists/order
@@ -178,10 +191,10 @@ Body `{}`. BLOCKED → PROGRESS. 200: `{ "message": "Task resumed", "data": Task
 
 ### POST /api/tasks/:id/submit
 
-Body `{}`. PROGRESS → PENDING; minimal satu evidence FILE atau LINK. Tidak ada pemeriksaan semua checklist harus selesai pada handler saat ini.
+Body `{}`. PROGRESS → PENDING; minimal satu evidence FILE atau LINK. Semua checklist harus selesai; checklist kosong tidak menghalangi submit.
 200: `{ "message": "Task submitted for approval", "data": TaskDetail }`.
 
-Semua aksi: error aturan umum, 400 pesan validasi, 409 `Invalid task status transition` jika status asal salah. Submit juga dapat menghasilkan 409 `Add at least one evidence before submitting`. Setelah PENDING, task terkunci untuk mutasi biasa; approve/reject tersedia di [Assessment & approval](task-ai-results.md).
+Semua aksi: error aturan umum, 400 pesan validasi, 409 `Invalid task status transition` jika status asal salah. Submit juga dapat menghasilkan 409 `Add at least one evidence before submitting` atau `Complete all checklist items before submitting`. Setelah PENDING, task terkunci untuk mutasi biasa; approve/reject tersedia di [Assessment & approval](task-ai-results.md).
 
 ## GET /api/tasks/:id/status-histories
 
@@ -190,3 +203,7 @@ Tanpa body/query, akses seperti detail task. 200: `{ "data": TaskStatusHistory[]
 Endpoint evidence dijelaskan terpisah di [Task evidence](task-evidences.md).
 
 Assessment, approval/rejection, dan retry dijelaskan di [Assessment & approval](task-ai-results.md). List task kini menyertakan initial_assessment, final_assessment, evidence_count, dan revision_reason; detail tetap memakai ai_results lengkap.
+
+My Focus / Task History: optional query `sort=due_asc|due_desc|recent` (recent = status_changed_at descending; null deadlines last). List fields `revision_count`, `work_duration_seconds` (sum of PROGRESS intervals).
+
+- Optional `completed_month=YYYY-MM`: DONE tasks with a DONE status history timestamp in the selected Asia/Jakarta calendar month, applied before pagination.

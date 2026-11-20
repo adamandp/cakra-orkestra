@@ -1,3 +1,4 @@
+import { notify } from "./notifications";
 import type { AuthUser } from "@/interface/auth.interface";
 import type { ProjectUser } from "@/interface/project.interface";
 import type {
@@ -137,11 +138,252 @@ function seedTasks(): MockTask[] {
   ];
 }
 
+function extraDemoTasks(existing: MockTask[], team = false): MockTask[] {
+  const baseExamples = [
+    ["Design responsive navigation", "OPEN"],
+    ["Implement document upload", "PROGRESS"],
+    ["Resolve vector indexing timeout", "BLOCKED"],
+    ["Review search relevance", "PENDING"],
+    ["Complete API integration", "DONE"],
+    ["Build status history timeline", "OPEN"],
+    ["Add accessibility coverage", "PROGRESS"],
+    ["Investigate deployment failures", "BLOCKED"],
+    ["Validate evaluation results", "PENDING"],
+    ["Finalize dashboard metrics", "DONE"],
+    ["Review logging configuration", "OPEN"],
+    ["Improve retrieval latency", "PROGRESS"],
+  ] as const;
+  const members = team ? findMockProject(project1Id)?.member_ids ?? [] : [];
+  const topics = ["Search results", "Query parser", "Ranking pipeline", "Filter panel", "Intent resolver", "API gateway", "Search analytics", "Document index", "Audit log", "Session cache", "Access control", "Error handling", "Mobile view", "Evaluation suite", "Retrieval service", "Data pipeline", "Monitoring", "Release workflow", "Result cards", "Search suggestions"];
+  const examples = team ? members.flatMap((_, i) => Array.from({length: 3 + i % 3}, (_, j) => [
+    `${["Implement", "Test", "Review", "Optimize", "Document"][j]} ${topics[i % topics.length]}`,
+    baseExamples[(i + j) % baseExamples.length][1],
+  ] as const)) : baseExamples;
+  const assignments = members.flatMap((id, i) => Array.from({length: 3 + i % 3}, () => id));
+  let next = Math.max(0, ...existing.map((task) => Number(task.code.slice(4)))) + 1;
+  return examples.flatMap(([title, status], index) => {
+    const id = `00000000-0000-4000-8000-${String((team ? 1000 : 410) + index).padStart(12, "0")}`;
+    if (existing.some((task) => task.id === id)) return [];
+    const projectId = team ? project1Id :
+      index % 2 === 0
+        ? "00000000-0000-4000-8000-000000000204"
+        : "00000000-0000-4000-8000-000000000205";
+    if (!findMockProject(projectId)) return [];
+    const task = buildTask(
+      {
+        project_id: projectId,
+        title,
+        description: `Demo task: ${title}. Validate the implementation and document the result before submission.`,
+        task_type: "REGULAR",
+        task_category: "CLIENT",
+        due_date: "2026-11-30",
+        checklists: [
+          { title: "Implement changes" },
+          { title: "Verify behavior" },
+          { title: "Document results" },
+        ],
+      },
+      adminId,
+      team ? assignments[index] : index < 10 ? adminId : memberId,
+      `TSK-${String(next++).padStart(3, "0")}`,
+      timestamp,
+      id,
+    );
+    if (status !== "OPEN") {
+      task.task_status = status;
+      task.status_histories.push({
+        ...makeHistory(id, task.assignee_id, timestamp),
+        previous_status: "OPEN",
+        current_status: "PROGRESS",
+      });
+      if (status !== "PROGRESS")
+        task.status_histories.push({
+          ...makeHistory(id, task.assignee_id, timestamp),
+          previous_status: "PROGRESS",
+          current_status: status === "DONE" ? "PENDING" : status,
+        });
+      if (status === "BLOCKED") task.blocker_reason = "Waiting for the integration environment.";
+      if (status === "PENDING" || status === "DONE") {
+        task.checklists = task.checklists.map((item) => ({
+          ...item,
+          is_completed: true,
+          completed_at: timestamp,
+        }));
+        task.evidences = [
+          {
+            id: crypto.randomUUID(),
+            task_id: id,
+            type: "LINK",
+            title: "Example review evidence",
+            url: "https://example.com/",
+            object_key: null,
+            file_name: null,
+            mime_type: null,
+            file_size: null,
+            created_at: timestamp,
+            updated_at: timestamp,
+          },
+        ];
+      }
+      if (status === "DONE") {
+        task.approved_at = timestamp;
+        task.approved_by = adminId;
+        task.ai_results.final = {
+          ...makeMockAIResult(id, "FINAL", task, timestamp),
+          status: "COMPLETED",
+          tier: "CORE",
+          points: 5,
+          reasoning: "Simulated demo assessment.",
+          model_name: "mock-rubric-v1",
+          evaluated_at: timestamp,
+        };
+        task.status_histories.push({
+          ...makeHistory(id, adminId, timestamp),
+          previous_status: "PENDING",
+          current_status: "DONE",
+        });
+      }
+    }
+    return [task];
+  });
+}
+
+function focusDemoTasks(existing: MockTask[]): MockTask[] {
+  const examples = [
+    ["Fix overdue upload validation", "PROGRESS", -2, 204],
+    ["Review revised search results", "PROGRESS", 1, 205],
+    ["Resolve final assessment failure", "PENDING", 2, 204],
+    ["Follow up on completed project", "OPEN", 3, 203],
+    ["Prepare next sprint documentation", "OPEN", 7, 205],
+    ["Ship completed accessibility fixes", "DONE", -1, 204],
+  ] as const;
+  let next = Math.max(0, ...existing.map((t) => Number(t.code.slice(4)))) + 1;
+  const now = Date.now();
+  const date = (days: number) => new Date(now + days * 86400000).toISOString();
+  return [adminId, memberId].flatMap((actor, group) =>
+    examples.flatMap(([title, status, due, project], i) => {
+      const id = `00000000-0000-4000-8000-000000000${450 + group * 10 + i}`;
+      const projectId = `00000000-0000-4000-8000-000000000${project}`;
+      if (existing.some((t) => t.id === id) || !findMockProject(projectId)) return [];
+      const task = buildTask(
+        {
+          project_id: projectId,
+          title: "[Demo] " + title,
+          description: "Example My Focus workflow for testing.",
+          task_type: "REGULAR",
+          task_category: "CLIENT",
+          due_date: date(due).slice(0, 10),
+          checklists: [
+            { title: "Implement changes" },
+            { title: "Verify behavior" },
+            { title: "Document results" },
+          ],
+        },
+        adminId,
+        actor,
+        `TSK-${String(next++).padStart(3, "0")}`,
+        date(-4),
+        id,
+      );
+      task.task_status = status;
+      task.status_changed_at = date(-1);
+      if (status !== "OPEN")
+        task.status_histories.push({
+          ...makeHistory(id, actor, date(-3)),
+          previous_status: "OPEN",
+          current_status: "PROGRESS",
+        });
+      if (status === "PROGRESS")
+        task.checklists[0] = { ...task.checklists[0], is_completed: true, completed_at: date(-2) };
+      if (i === 1) {
+        task.status_histories.push({
+          ...makeHistory(id, actor, date(-2)),
+          previous_status: "PROGRESS",
+          current_status: "PENDING",
+        });
+        task.status_histories.push({
+          ...makeHistory(id, adminId, date(-1)),
+          previous_status: "PENDING",
+          current_status: "PROGRESS",
+          reason: "Add stronger regression coverage and attach the test results.",
+        });
+      }
+      if (status === "PENDING" || status === "DONE") {
+        task.status_histories.push({
+          ...makeHistory(id, actor, date(-2)),
+          previous_status: "PROGRESS",
+          current_status: "PENDING",
+        });
+        task.checklists = task.checklists.map((c) => ({
+          ...c,
+          is_completed: true,
+          completed_at: date(-2),
+        }));
+        task.evidences = [
+          {
+            id: crypto.randomUUID(),
+            task_id: id,
+            type: "LINK",
+            title: "Demo test report",
+            url: "https://example.com/",
+            object_key: null,
+            file_name: null,
+            mime_type: null,
+            file_size: null,
+            created_at: date(-2),
+            updated_at: date(-2),
+          },
+        ];
+        task.approved_at = date(-1);
+        task.approved_by = adminId;
+        task.ai_results.final = {
+          ...makeMockAIResult(id, "FINAL", task, date(-1)),
+          status: status === "DONE" ? "COMPLETED" : "FAILED",
+          tier: status === "DONE" ? "CORE" : null,
+          points: status === "DONE" ? 5 : null,
+          error_message: status === "DONE" ? null : "Demo assessment timeout",
+          evaluated_at: date(-1),
+        };
+        if (status === "DONE")
+          task.status_histories.push({
+            ...makeHistory(id, adminId, date(-1)),
+            previous_status: "PENDING",
+            current_status: "DONE",
+          });
+      }
+      return [task];
+    }),
+  );
+}
+
 export function getMockTasks(): MockTask[] {
   const raw = localStorage.getItem(TASKS_KEY);
   const tasks = raw === null ? seedTasks() : (JSON.parse(raw) as MockTask[]);
+  if (!localStorage.getItem("cakra-orkestra:demo-tasks:v2")) {
+    tasks.push(...extraDemoTasks(tasks));
+    saveMockTasks(tasks);
+    localStorage.setItem("cakra-orkestra:demo-tasks:v2", "1");
+  }
+  if (!localStorage.getItem("cakra-orkestra:focus-demo:v1")) {
+    tasks.push(...focusDemoTasks(tasks));
+    saveMockTasks(tasks);
+    localStorage.setItem("cakra-orkestra:focus-demo:v1", "1");
+  }
+  if (!localStorage.getItem("cakra-orkestra:demo-team-tasks:v1")) {
+    tasks.push(...extraDemoTasks(tasks, true));
+    saveMockTasks(tasks);
+    localStorage.setItem("cakra-orkestra:demo-team-tasks:v1", "1");
+  }
   const now = Date.now();
-  const updated = tasks.map((task) => advanceMockTaskAssessments(task, now));
+  const updated = tasks.map((task) => {
+    const next = advanceMockTaskAssessments(task, now);
+    if (!task.deleted_at) for (const key of ["initial", "final"] as const) {
+      if (next.ai_results[key]?.status === "COMPLETED" && task.ai_results[key]?.status !== "COMPLETED") {
+        notify([task.assignee_id], null, "ASSESSMENT_COMPLETED", key === "initial" ? "Initial assessment completed" : "Final assessment completed", task.title, "task", task.id);
+      }
+    }
+    return next;
+  });
   if (raw === null || updated.some((task, index) => task !== tasks[index])) saveMockTasks(updated);
   return updated;
 }
@@ -228,6 +470,16 @@ export function toPublicTask(task: MockTask): TaskListItem {
     initial_assessment: assessmentSummary(initial),
     final_assessment: final ? assessmentSummary(final) : null,
     evidence_count: task.evidences.length,
+    revision_count: task.status_histories.filter(
+      (h) => h.previous_status === "PENDING" && h.current_status === "PROGRESS",
+    ).length,
+    work_duration_seconds: Math.floor(
+      task.status_histories.reduce((total, h, i, all) => {
+        if (h.current_status !== "PROGRESS") return total;
+        const end = all[i + 1]?.created_at;
+        return total + Math.max(0, (end ? Date.parse(end) : Date.now()) - Date.parse(h.created_at));
+      }, 0) / 1000,
+    ),
     revision_reason:
       task.task_status === "PROGRESS" || task.task_status === "BLOCKED"
         ? (revision?.reason ?? null)

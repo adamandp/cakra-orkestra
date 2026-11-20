@@ -12,9 +12,17 @@ export function DashboardTaskStatus({ task }: { task: TaskListItem }) {
         : status === "PROCESSING"
           ? "Final AI processing"
           : status === "COMPLETED"
-            ? "Final AI completed — awaiting DONE"
+            ? "Final AI completed"
             : "Final AI queued";
-    return <Badge variant={status === "FAILED" ? "destructive" : "secondary"}>{label}</Badge>;
+    return (
+      <Badge
+        className="h-6 w-28 justify-center text-[11px]"
+        variant={status === "FAILED" ? "destructive" : "secondary"}
+        title={status === "COMPLETED" ? "Final AI completed — awaiting DONE" : label}
+      >
+        {label}
+      </Badge>
+    );
   }
   return <TaskStatusBadge status={task.task_status} />;
 }
@@ -25,9 +33,9 @@ export function DashboardTaskPoints({ task }: { task: TaskListItem }) {
   if (result?.status === "COMPLETED" && result.points !== null) {
     return (
       <div className="space-y-1">
-        <Badge variant="outline">
+        <p className="font-bold">
           {result.tier ?? "Unclassified"} · {result.points} pts
-        </Badge>
+        </p>
         <p className="text-xs text-muted-foreground">{done ? "Approved" : "Estimated"}</p>
       </div>
     );

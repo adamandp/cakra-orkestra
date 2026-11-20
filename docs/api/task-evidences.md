@@ -1,4 +1,4 @@
-# Task evidence — 6 endpoint
+# Task evidence — 7 endpoint
 
 | Method   | Endpoint                                                                                      |
 | -------- | --------------------------------------------------------------------------------------------- |
@@ -7,11 +7,12 @@
 | `POST`   | [`/api/tasks/:id/evidences/presign`](#post-apitasksidevidencespresign)                        |
 | `POST`   | [`/api/tasks/:id/evidences/confirm`](#post-apitasksidevidencesconfirm)                        |
 | `GET`    | [`/api/tasks/:id/evidences/:evidenceId/download`](#get-apitasksidevidencesevidenceiddownload) |
+| `PATCH` | [`/api/tasks/:id/evidences/:evidenceId`](#patch-apitasksidevidencesevidenceid) |
 | `DELETE` | [`/api/tasks/:id/evidences/:evidenceId`](#delete-apitasksidevidencesevidenceid)               |
 
-Sumber: [handler](../../src/mocks/handlers/task-evidences.ts), [schema](../../src/features/tasks/task.schema.ts). Semua endpoint membutuhkan Bearer; ADMIN atau MEMBER assignee task. Error umum: 401 `Unauthorized`, 404 `Task not found`. Mutasi hanya pada task OPEN/PROGRESS/BLOCKED dan project ACTIVE; selain itu 409 `Task is locked`. Body JSON bersifat strict.
+Sumber: [handler](../../src/mocks/handlers/task-evidences.ts), [schema](../../src/features/tasks/task.schema.ts). Semua endpoint membutuhkan Bearer; ADMIN atau MEMBER assignee task. Error umum: 401 `Unauthorized`, 404 `Task not found`. Mutasi hanya pada task OPEN/PROGRESS/BLOCKED dan project ACTIVE; selain itu 409 `Task is locked`. Body JSON bersifat strict. Penambahan evidence (link, presign, confirm baru) ditolak saat BLOCKED dengan 409 `Resume the task before adding evidence`.
 
-Model: [TaskEvidence dan TaskDetail](models.md). Alur file: presign → PUT binary ke upload_url → confirm. Upload saja belum menambahkan evidence pada task.
+Model: [TaskEvidence dan TaskDetail](models.md). Alur file: presign → PUT binary ke upload_url → confirm. Upload saja belum menambahkan evidence pada task. Duplikat URL (normalisasi URL standar) dan file dengan isi SHA-256 yang sama ditolak per task dengan 409. Hash dihitung dari binary saat confirm, bukan nama file. Konfirmasi ulang upload yang sama tetap idempotent.
 
 ## GET /api/tasks/:id/evidences
 
@@ -65,6 +66,10 @@ Error: aturan umum; 400 pesan validasi / `Invalid object key`; 404 `Upload not f
 
 Tanpa body/query. Hanya FILE. 200 body binary (bukan JSON), header Content-Type `application/octet-stream`, Content-Disposition `attachment`, Cache-Control `no-store`.
 Error: aturan umum; 404 `File evidence not found` / `Evidence not found` / `File unavailable`; 500 `Unable to read evidence file`.
+
+## PATCH /api/tasks/:id/evidences/:evidenceId
+
+ADMIN atau assignee, dengan aturan mutasi yang sama. Body strict: `{"title":"Updated title","url":"https://example.com/new"}`. Title wajib (nullable untuk menghapus judul); url opsional dan hanya untuk LINK. FILE hanya dapat mengubah title. 200: `{"message":"Evidence updated","data":TaskDetail}`. 409 jika URL sudah terpasang pada task yang sama.
 
 ## DELETE /api/tasks/:id/evidences/:evidenceId
 

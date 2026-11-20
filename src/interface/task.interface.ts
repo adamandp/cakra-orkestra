@@ -36,6 +36,7 @@ export interface TaskEvidence {
   file_name: string | null;
   mime_type: string | null;
   file_size: number | null;
+  sha256_hash?: string;
   created_at: string;
   updated_at: string;
 }
@@ -106,6 +107,8 @@ export interface TaskListItem extends Task {
   final_assessment: TaskAssessmentSummary | null;
   evidence_count: number;
   revision_reason: string | null;
+  revision_count?: number;
+  work_duration_seconds?: number;
 }
 
 export interface TaskDetail extends Task {
@@ -118,6 +121,9 @@ export interface TaskDetail extends Task {
 export interface TaskListParams {
   q?: string;
   scope?: "me";
+  completed_month?: string;
+  exclude_status?: TaskStatus;
+  sort?: "due_asc" | "due_desc" | "recent";
   project_id?: string;
   assignee_id?: string;
   status?: TaskStatus;
@@ -145,6 +151,8 @@ export interface CreateTaskInput {
   checklists: { title: string }[];
 }
 
+export type UpdateTaskDescriptionInput = { description: string };
+
 export type UpdateTaskInput = Partial<
   Pick<CreateTaskInput, "title" | "description" | "task_type" | "task_category" | "due_date">
 >;
@@ -166,6 +174,11 @@ export type TaskWorkflowAction = "start" | "block" | "resume" | "submit";
 export interface BlockTaskInput {
   reason: string;
 }
+export interface UpdateTaskEvidenceInput {
+  title: string | null;
+  url?: string;
+}
+
 export interface CreateTaskLinkInput {
   title?: string;
   url: string;

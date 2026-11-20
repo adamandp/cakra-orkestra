@@ -7,10 +7,10 @@ import { toast } from "sonner";
 import {
   EllipsisVerticalIcon,
   LogOutIcon,
-  MonitorIcon,
   MoonIcon,
   SunIcon,
   LockKeyholeIcon,
+  UserRoundPenIcon,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -30,12 +30,15 @@ import {
 } from "@/components/ui/sidebar";
 import { useAuth } from "@/providers/auth-provider";
 import { ChangePasswordSheet } from "@/features/auth/components/change-password-sheet";
+import { UserFormSheet } from "@/features/users/components/user-form-sheet";
 import { getAuthError } from "@/features/auth/auth.api";
 
 export function NavUser() {
   const { isMobile } = useSidebar();
-  const { setTheme } = useTheme();
+  const { resolvedTheme, setTheme } = useTheme();
+  const dark = resolvedTheme === "dark";
   const { user, logout } = useAuth();
+  const [profileOpen, setProfileOpen] = useState(false);
   const [passwordOpen, setPasswordOpen] = useState(false);
   const mutation = useMutation({
     mutationFn: logout,
@@ -59,48 +62,63 @@ export function NavUser() {
               render={
                 <SidebarMenuButton
                   size="lg"
-                  className="h-14 rounded-lg border-2 border-sidebar-border aria-expanded:bg-muted"
+                  className="flex h-14 items-center gap-3 rounded-none border-0 shadow-none aria-expanded:bg-muted group-data-[collapsible=icon]:mr-auto group-data-[collapsible=icon]:justify-start"
                 />
               }
             >
-              <Avatar className="size-9 rounded-lg border-2 border-border bg-primary">
+              <Avatar className="size-10 rounded-none border-2 border-border bg-yellow group-data-[collapsible=icon]:size-8">
                 {user.avatar_url && <AvatarImage src={user.avatar_url} alt={user.name} />}
-                <AvatarFallback className="rounded-md bg-primary text-primary-foreground">
+                <AvatarFallback className="rounded-none bg-yellow font-bold text-[#10121a]">
                   {initials}
                 </AvatarFallback>
               </Avatar>
-              <div className="grid flex-1 text-left text-sm leading-tight">
+              <div className="grid min-w-0 flex-1 text-left text-sm leading-tight group-data-[collapsible=icon]:hidden">
                 <span className="truncate font-bold">{user.name}</span>
-                <span className="truncate text-xs text-muted-foreground">{user.role}</span>
+                <span className="truncate text-xs text-muted-foreground">
+                  {user.role === "ADMIN" ? "Administrator" : "Member"}
+                </span>
               </div>
-              <EllipsisVerticalIcon className="ml-auto size-4" />
+              <EllipsisVerticalIcon className="ml-auto size-4 group-data-[collapsible=icon]:hidden" />
             </DropdownMenuTrigger>
             <DropdownMenuContent
-              className="min-w-56 border-2 border-border shadow-neo-card ring-0"
-              side={isMobile ? "bottom" : "right"}
-              align="end"
-              sideOffset={8}
+              className="w-56 min-w-0 max-w-[calc(100vw-24px)] border-2 border-border p-3 shadow-neo-card ring-0"
+              side={isMobile ? "top" : "right"}
+              align={isMobile ? "start" : "end"}
+              sideOffset={isMobile ? 12 : 24}
+              showArrow
             >
-              <DropdownMenuGroup>
+              <DropdownMenuGroup className="flex flex-col gap-2">
                 <DropdownMenuLabel>{user.username}</DropdownMenuLabel>
+                <DropdownMenuItem onClick={() => setProfileOpen(true)}>
+                  <UserRoundPenIcon /> Edit information
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setPasswordOpen(true)}>
                   <LockKeyholeIcon /> Change password
                 </DropdownMenuItem>
               </DropdownMenuGroup>
-              <DropdownMenuSeparator />
-              <DropdownMenuGroup>
+              <DropdownMenuSeparator className="mx-0 my-3" />
+              <DropdownMenuGroup className="flex flex-col gap-2">
                 <DropdownMenuLabel>Appearance</DropdownMenuLabel>
-                <DropdownMenuItem onClick={() => setTheme("light")}>
-                  <SunIcon /> Light
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setTheme("dark")}>
-                  <MoonIcon /> Dark
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setTheme("system")}>
-                  <MonitorIcon /> System
+                <DropdownMenuItem
+                  onClick={(event) => {
+                    event.preventDefault();
+                    setTheme(dark ? "light" : "dark");
+                  }}
+                >
+                  {dark ? <MoonIcon /> : <SunIcon />} Dark mode
+                  <span
+                    role="switch"
+                    aria-label="Dark mode"
+                    aria-checked={dark}
+                    className={`ml-auto flex h-5 w-9 items-center border-2 border-border p-0.5 ${dark ? "bg-primary" : "bg-muted"}`}
+                  >
+                    <span
+                      className={`size-3 border border-border bg-background transition-transform ${dark ? "translate-x-3" : ""}`}
+                    />
+                  </span>
                 </DropdownMenuItem>
               </DropdownMenuGroup>
-              <DropdownMenuSeparator />
+              <DropdownMenuSeparator className="mx-0 my-3" />
               <DropdownMenuItem disabled={mutation.isPending} onClick={() => mutation.mutate()}>
                 <LogOutIcon /> {mutation.isPending ? "Logging out..." : "Log out"}
               </DropdownMenuItem>
@@ -108,7 +126,16 @@ export function NavUser() {
           </DropdownMenu>
         </SidebarMenuItem>
       </SidebarMenu>
-      {passwordOpen && <ChangePasswordSheet open={passwordOpen} onOpenChange={setPasswordOpen} />}
+      {profileOpen && (
+        <UserFormSheet
+          modal
+          userId={user.id}
+          roles={[]}
+          onClose={() => setProfileOpen(false)}
+          onSaved={() => setProfileOpen(false)}
+        />
+      )}
+      <ChangePasswordSheet open={passwordOpen} onOpenChange={setPasswordOpen} />
     </>
   );
 }

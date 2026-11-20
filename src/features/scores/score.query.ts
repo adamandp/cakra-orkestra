@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import type { ScoreHistoryParams, ScorePeriodParams } from "@/interface/score.interface";
-import { getMyScore, getMyScoreHistory, getUserScore } from "./score.api";
+import { getMyScore, getMyScoreHistory, getUserScore, getLeaderboard } from "./score.api";
 import { SCORE_POLL_INTERVAL } from "./score.constants";
 
 export const scoreKeys = {
@@ -53,4 +53,8 @@ export function useUserScore(
     refetchInterval: (query) =>
       query.state.data?.summary.has_running_assessments ? SCORE_POLL_INTERVAL : false,
   });
+}
+
+export function useLeaderboard(viewerId: string, month: string) {
+  return useQuery({ queryKey: ["scores", "leaderboard", viewerId, month], queryFn: ({ signal }) => getLeaderboard({ month }, signal), enabled: Boolean(viewerId), refetchInterval: 15000 });
 }
