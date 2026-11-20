@@ -1,10 +1,5 @@
-import { PageHeader } from "@/components/shared/page-header";
+import { MyFocus } from "@/features/my-focus/components/my-focus";
 
 export default function MyFocusPage() {
-  return (
-    <PageHeader
-      title="My Focus"
-      description="Manage your daily tasks and track your contributions."
-    />
-  );
+  return <MyFocus />;
 }

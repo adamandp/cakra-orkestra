@@ -3,8 +3,11 @@ import type { ProjectUser } from "@/interface/project.interface";
 import type {
   CreateTaskInput,
   Task,
+  TaskAIResult,
+  TaskAssessmentSummary,
   TaskChecklist,
   TaskDetail,
+  TaskListItem,
   TaskStatusHistory,
   TaskWorkflowAction,
 } from "@/interface/task.interface";
@@ -183,7 +186,7 @@ function publicUser(user: ProjectUser): ProjectUser {
   return { id, name, username, avatar_url, is_active };
 }
 
-export function toPublicTask(task: MockTask): Task {
+function publicTaskBase(task: MockTask): Task {
   const project = findMockProject(task.project_id);
   const assignee = findMockUser(task.assignee_id);
   if (!project || !assignee) throw new Error("Task references a missing project or user");
@@ -209,9 +212,32 @@ export function toPublicTask(task: MockTask): Task {
   };
 }
 
+function assessmentSummary(result: TaskAIResult): TaskAssessmentSummary {
+  const { status, tier, points } = result;
+  return { status, tier, points };
+}
+
+// Existing list handler can keep tasks.map(toPublicTask).
+export function toPublicTask(task: MockTask): TaskListItem {
+  const { initial, final } = task.ai_results;
+  const revision = [...task.status_histories]
+    .reverse()
+    .find((item) => item.previous_status === "PENDING" && item.current_status === "PROGRESS");
+  return {
+    ...publicTaskBase(task),
+    initial_assessment: assessmentSummary(initial),
+    final_assessment: final ? assessmentSummary(final) : null,
+    evidence_count: task.evidences.length,
+    revision_reason:
+      task.task_status === "PROGRESS" || task.task_status === "BLOCKED"
+        ? (revision?.reason ?? null)
+        : null,
+  };
+}
+
 export function toPublicTaskDetail(task: MockTask): TaskDetail {
   return {
-    ...toPublicTask(task),
+    ...publicTaskBase(task),
     checklists: [...task.checklists].sort((a, b) => a.sort_order - b.sort_order),
     status_histories: task.status_histories,
     evidences: task.evidences,

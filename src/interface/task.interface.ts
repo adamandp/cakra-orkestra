@@ -99,6 +99,15 @@ export interface Task {
   checklist_completed: number;
 }
 
+export type TaskAssessmentSummary = Pick<TaskAIResult, "status" | "tier" | "points">;
+
+export interface TaskListItem extends Task {
+  initial_assessment: TaskAssessmentSummary;
+  final_assessment: TaskAssessmentSummary | null;
+  evidence_count: number;
+  revision_reason: string | null;
+}
+
 export interface TaskDetail extends Task {
   checklists: TaskChecklist[];
   status_histories: TaskStatusHistory[];
@@ -119,7 +128,7 @@ export interface TaskListParams {
 }
 
 export interface TaskListResponse {
-  items: Task[];
+  items: TaskListItem[];
   total: number;
   limit: number;
   offset: number;

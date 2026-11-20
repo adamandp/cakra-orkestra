@@ -8,6 +8,7 @@ import { taskEvidenceHandlers } from "./task-evidences";
 import { taskAIResultHandlers } from "./task-ai-results";
 import { changelogHandlers } from "./changelogs";
 import { scoreHandlers } from "./scores";
+import { dashboardHandlers } from "./dashboards";
 
 export const handlers: RequestHandler[] = [
   ...authHandlers,
@@ -19,4 +20,5 @@ export const handlers: RequestHandler[] = [
   ...taskAIResultHandlers,
   ...changelogHandlers,
   ...scoreHandlers,
+  ...dashboardHandlers,
 ];

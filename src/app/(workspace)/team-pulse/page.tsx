@@ -1,10 +1,5 @@
-import { PageHeader } from "@/components/shared/page-header";
+import { TeamPulse } from "@/features/team-pulse/components/team-pulse";
 
 export default function TeamPulsePage() {
-  return (
-    <PageHeader
-      title="PM & Team Pulse"
-      description="Monitor team progress, workloads, and approvals."
-    />
-  );
+  return <TeamPulse />;
 }

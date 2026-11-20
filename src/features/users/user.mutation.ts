@@ -8,6 +8,7 @@ import type {
 import { useAuth } from "@/providers/auth-provider";
 import { createUser, updateUser, updateUserRole, updateUserStatus } from "./user.api";
 import { userKeys } from "./user.query";
+import { taskKeys } from "@/features/tasks/task.query";
 
 export function useCreateUser() {
   const queryClient = useQueryClient();
@@ -15,7 +16,10 @@ export function useCreateUser() {
     mutationFn: (input: CreateUserInput) => createUser(input),
     onSuccess: async (user) => {
       queryClient.setQueryData(userKeys.detail(user.id), user);
-      await queryClient.invalidateQueries({ queryKey: userKeys.lists });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: userKeys.lists }),
+        queryClient.invalidateQueries({ queryKey: taskKeys.lists }),
+      ]);
     },
   });
 }
@@ -28,7 +32,10 @@ export function useUpdateUser() {
     onSuccess: async (user) => {
       syncProfile(user);
       queryClient.setQueryData(userKeys.detail(user.id), user);
-      await queryClient.invalidateQueries({ queryKey: userKeys.lists });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: userKeys.lists }),
+        queryClient.invalidateQueries({ queryKey: taskKeys.all }),
+      ]);
     },
   });
 }
@@ -40,7 +47,10 @@ export function useUpdateUserStatus() {
       updateUserStatus(id, input),
     onSuccess: async (user) => {
       queryClient.setQueryData(userKeys.detail(user.id), user);
-      await queryClient.invalidateQueries({ queryKey: userKeys.lists });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: userKeys.lists }),
+        queryClient.invalidateQueries({ queryKey: taskKeys.all }),
+      ]);
     },
   });
 }
@@ -52,7 +62,10 @@ export function useUpdateUserRole() {
       updateUserRole(id, input),
     onSuccess: async (user) => {
       queryClient.setQueryData(userKeys.detail(user.id), user);
-      await queryClient.invalidateQueries({ queryKey: userKeys.lists });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: userKeys.lists }),
+        queryClient.invalidateQueries({ queryKey: taskKeys.all }),
+      ]);
     },
   });
 }
