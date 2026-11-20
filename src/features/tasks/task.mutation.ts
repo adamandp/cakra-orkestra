@@ -1,4 +1,5 @@
 import { useMutation, useQueryClient, type QueryClient } from "@tanstack/react-query";
+import { scoreKeys } from "@/features/scores/score.query";
 import type {
   TaskDetail,
   CreateTaskInput,
@@ -29,23 +30,32 @@ import {
 } from "./task.api";
 import { taskKeys } from "./task.query";
 
-async function syncTask(queryClient: QueryClient, task: TaskDetail) {
+export async function syncTask(queryClient: QueryClient, task: TaskDetail) {
   await Promise.all([
     queryClient.cancelQueries({ queryKey: taskKeys.detail(task.id) }),
     queryClient.cancelQueries({ queryKey: taskKeys.checklists(task.id) }),
     queryClient.cancelQueries({ queryKey: taskKeys.evidences(task.id) }),
     queryClient.cancelQueries({ queryKey: taskKeys.statusHistories(task.id) }),
+    queryClient.cancelQueries({ queryKey: taskKeys.aiResults(task.id) }),
   ]);
   queryClient.setQueryData(taskKeys.detail(task.id), task);
   queryClient.setQueryData(taskKeys.checklists(task.id), task.checklists);
   queryClient.setQueryData(taskKeys.evidences(task.id), task.evidences);
   queryClient.setQueryData(taskKeys.statusHistories(task.id), task.status_histories);
+  const results = task.ai_results.final
+    ? [task.ai_results.initial, task.ai_results.final]
+    : [task.ai_results.initial];
+  queryClient.setQueryData(taskKeys.aiResults(task.id), results);
+  for (const result of results)
+    queryClient.setQueryData(taskKeys.aiResult(task.id, result.id), result);
   await Promise.all([
     queryClient.invalidateQueries({ queryKey: taskKeys.lists }),
     queryClient.invalidateQueries({ queryKey: taskKeys.detail(task.id) }),
     queryClient.invalidateQueries({ queryKey: taskKeys.checklists(task.id) }),
     queryClient.invalidateQueries({ queryKey: taskKeys.evidences(task.id) }),
     queryClient.invalidateQueries({ queryKey: taskKeys.statusHistories(task.id) }),
+    queryClient.invalidateQueries({ queryKey: taskKeys.aiResults(task.id) }),
+    queryClient.invalidateQueries({ queryKey: scoreKeys.all }),
   ]);
 }
 
@@ -75,12 +85,17 @@ export function useDeleteTask(id: string) {
         client.cancelQueries({ queryKey: taskKeys.checklists(id) }),
         client.cancelQueries({ queryKey: taskKeys.evidences(id) }),
         client.cancelQueries({ queryKey: taskKeys.statusHistories(id) }),
+        client.cancelQueries({ queryKey: taskKeys.aiResults(id) }),
       ]);
       client.removeQueries({ queryKey: taskKeys.detail(id) });
       client.removeQueries({ queryKey: taskKeys.checklists(id) });
       client.removeQueries({ queryKey: taskKeys.evidences(id) });
       client.removeQueries({ queryKey: taskKeys.statusHistories(id) });
-      await client.invalidateQueries({ queryKey: taskKeys.lists });
+      client.removeQueries({ queryKey: taskKeys.aiResults(id) });
+      await Promise.all([
+        client.invalidateQueries({ queryKey: taskKeys.lists }),
+        client.invalidateQueries({ queryKey: scoreKeys.all }),
+      ]);
     },
   });
 }

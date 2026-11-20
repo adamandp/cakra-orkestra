@@ -40,12 +40,26 @@ export interface TaskEvidence {
   updated_at: string;
 }
 
+export type TaskAIResultType = "INITIAL" | "FINAL";
+export type TaskAIResultStatus = "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED";
+export type TaskAIResultTier = "SPARK" | "PULSE" | "CORE" | "SURGE" | "APEX";
+
+export interface AssessmentRubricItem {
+  tier: TaskAIResultTier;
+  points: number;
+  description: string;
+}
+
+export interface RejectTaskInput {
+  reason: string;
+}
+
 export interface TaskAIResult {
   id: string;
   task_id: string;
-  type: "INITIAL" | "FINAL";
-  status: "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED";
-  tier: "SPARK" | "PULSE" | "CORE" | "SURGE" | "APEX" | null;
+  type: TaskAIResultType;
+  status: TaskAIResultStatus;
+  tier: TaskAIResultTier | null;
   points: number | null;
   reasoning: string | null;
   input_snapshot: {

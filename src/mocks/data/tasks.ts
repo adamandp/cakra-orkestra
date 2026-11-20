@@ -3,7 +3,6 @@ import type { ProjectUser } from "@/interface/project.interface";
 import type {
   CreateTaskInput,
   Task,
-  TaskAIResult,
   TaskChecklist,
   TaskDetail,
   TaskStatusHistory,
@@ -12,6 +11,7 @@ import type {
 import { taskWorkflowTransitions } from "@/features/tasks/task.constants";
 import { findMockProject, canViewMockProject } from "./projects";
 import { findMockUser } from "./users";
+import { advanceMockTaskAssessments, makeMockAIResult } from "./task-ai-results";
 
 const TASKS_KEY = "cakra-orkestra:mock-tasks:v1";
 const adminId = "00000000-0000-4000-8000-000000000001";
@@ -50,32 +50,6 @@ function makeHistory(taskId: string, actor: string, now: string): TaskStatusHist
   };
 }
 
-function makeInitial(
-  taskId: string,
-  input: Pick<MockTask, "title" | "description" | "checklists">,
-  now: string,
-): TaskAIResult {
-  return {
-    id: crypto.randomUUID(),
-    task_id: taskId,
-    type: "INITIAL",
-    status: "PENDING",
-    tier: null,
-    points: null,
-    reasoning: null,
-    model_name: null,
-    error_message: null,
-    evaluated_at: null,
-    input_snapshot: {
-      title: input.title,
-      description: input.description,
-      checklists: input.checklists.map(({ title, is_completed }) => ({ title, is_completed })),
-    },
-    created_at: now,
-    updated_at: now,
-  };
-}
-
 function buildTask(
   input: CreateTaskInput,
   creator: string,
@@ -106,7 +80,7 @@ function buildTask(
     deleted_at: null,
     status_histories: [makeHistory(id, creator, now)],
     evidences: [],
-    ai_results: { initial: makeInitial(id, fields, now), final: null },
+    ai_results: { initial: makeMockAIResult(id, "INITIAL", fields, now), final: null },
   };
 }
 
@@ -162,10 +136,11 @@ function seedTasks(): MockTask[] {
 
 export function getMockTasks(): MockTask[] {
   const raw = localStorage.getItem(TASKS_KEY);
-  if (raw !== null) return JSON.parse(raw) as MockTask[];
-  const tasks = seedTasks();
-  saveMockTasks(tasks); // persist generated child IDs on the first read
-  return tasks;
+  const tasks = raw === null ? seedTasks() : (JSON.parse(raw) as MockTask[]);
+  const now = Date.now();
+  const updated = tasks.map((task) => advanceMockTaskAssessments(task, now));
+  if (raw === null || updated.some((task, index) => task !== tasks[index])) saveMockTasks(updated);
+  return updated;
 }
 
 function saveMockTasks(tasks: MockTask[]) {

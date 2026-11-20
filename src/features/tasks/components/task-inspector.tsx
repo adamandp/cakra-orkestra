@@ -23,6 +23,7 @@ import { TaskChecklistPanel } from "./task-checklist";
 import { TaskWorkflow } from "./task-workflow";
 import { TaskEvidencePanel } from "./task-evidence";
 import { TaskStatusHistoryPanel } from "./task-status-history";
+import { TaskAIAssessment } from "./task-ai-assessment";
 
 export function TaskInspector({
   taskId,
@@ -198,6 +199,7 @@ export function TaskInspector({
                 task={task}
                 editable={editable && !confirmDelete}
                 busy={busy}
+                isAdmin={isAdmin}
               />
               <TaskChecklistPanel
                 key={task.id}
@@ -211,6 +213,18 @@ export function TaskInspector({
                 editable={editable && !confirmDelete}
                 busy={busy}
               />
+              <TaskAIAssessment
+                key={`assessment:${task.id}`}
+                task={task}
+                isAdmin={isAdmin}
+                actorId={actorId}
+                busy={busy || confirmDelete}
+              />
+              {task.approved_at && (
+                <p className="text-xs text-muted-foreground">
+                  Human approval: {new Date(task.approved_at).toLocaleString()}
+                </p>
+              )}
               <TaskStatusHistoryPanel task={task} />
             </>
           )}

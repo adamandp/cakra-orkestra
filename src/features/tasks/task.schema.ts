@@ -72,6 +72,9 @@ export const blockTaskSchema = z
   .object({ reason: z.string().trim().min(1, "Blocker reason is required").max(2000) })
   .strict();
 export const emptyTaskActionSchema = z.object({}).strict();
+export const rejectTaskSchema = z
+  .object({ reason: z.string().trim().min(1, "Revision reason is required").max(2000) })
+  .strict();
 export const createTaskLinkSchema = z
   .object({
     title: evidenceTitle,

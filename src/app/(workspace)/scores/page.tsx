@@ -1,7 +1,5 @@
-import { PageHeader } from "@/components/shared/page-header";
+import { ScoreManagement } from "@/features/scores/components/score-management";
 
 export default function ScoresPage() {
-  return (
-    <PageHeader title="Scores" description="Track verified contributions and assessment results." />
-  );
+  return <ScoreManagement />;
 }

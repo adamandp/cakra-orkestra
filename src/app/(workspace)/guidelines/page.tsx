@@ -1,10 +1,5 @@
-import { PageHeader } from "@/components/shared/page-header";
+import { WorkflowGuidelines } from "@/features/guidelines/components/workflow-guidelines";
 
 export default function GuidelinesPage() {
-  return (
-    <PageHeader
-      title="Guideline & Flow"
-      description="Understand the workflow and assessment guidelines."
-    />
-  );
+  return <WorkflowGuidelines />;
 }
