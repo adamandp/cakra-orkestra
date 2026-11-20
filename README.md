@@ -8,11 +8,11 @@ Saat ini project berfokus pada frontend dengan mock API menggunakan MSW. Backend
 
 - **Autentikasi:** login, logout, refresh session, ubah password, dan akses berdasarkan role ADMIN / MEMBER.
 - **Projects:** daftar dan detail project, buat/edit project, ubah status, serta kelola anggota.
-- **Manage Tasks:** daftar dan detail tugas, buat/edit/hapus tugas, pengaturan assignee, dan checklist.
+- **Manage Tasks:** daftar dan detail tugas, buat/edit/hapus tugas, pengaturan assignee, checklist, workflow status, evidence link/file, serta approval/revisi.
 - **User Management:** pengelolaan user, status, dan role; khusus ADMIN.
 - **Workspace UI:** sidebar responsif, tema terang/gelap, dan tampilan neubrutalism.
 
-My Focus, PM & Team Pulse, Scores, Changelog, dan Guideline & Flow masih berupa halaman placeholder. Data dan hasil AI pada demo disimulasikan oleh mock API; data demo disimpan di browser.
+My Focus dan PM & Team Pulse menampilkan ringkasan tugas serta beban kerja. Scores menampilkan kontribusi bulanan; Changelog mendokumentasikan rilis per project; Guideline & Flow menjelaskan alur kerja dan rubrik penilaian. Assessment INITIAL/FINAL disimulasikan oleh mock API, termasuk retry saat gagal. Data demo disimpan di browser, dengan file evidence di IndexedDB.
 
 ## Tech stack
 
@@ -40,7 +40,7 @@ Untuk memakai backend sungguhan, set `NEXT_PUBLIC_ENABLE_MSW=false` dan sesuaika
 ## Struktur singkat
 
 - `src/app/` — halaman, routing, dan layout.
-- `src/features/` — modul auth, projects, tasks, dan users beserta UI dan akses datanya.
+- `src/features/` — modul fitur beserta UI, schema, dan akses datanya.
 - `src/components/` — komponen UI dan layout bersama.
 - `src/providers/` — provider autentikasi, query, dan mock API.
 - `src/interface/` — tipe data dan kontrak API.

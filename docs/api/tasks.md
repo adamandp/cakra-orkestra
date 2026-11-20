@@ -43,7 +43,7 @@ Sumber: [handler](../../src/mocks/handlers/tasks.ts), [schema](../../src/feature
 | `limit`        | Integer 1–100; default 20                                            |
 | `offset`       | Integer ≥ 0; default 0                                               |
 
-200: `{ "data": { "items": Task[], "total": number, "limit": number, "offset": number } }`. Items tidak menyertakan child collections dari TaskDetail.
+200: `{ "data": { "items": TaskListItem[], "total": number, "limit": number, "offset": number } }`. Items tidak menyertakan child collections dari TaskDetail.
 Error: 400 `Invalid task filters`; 403 `Forbidden` jika MEMBER memfilter assignee lain.
 
 ## POST /api/tasks
@@ -181,10 +181,12 @@ Body `{}`. BLOCKED → PROGRESS. 200: `{ "message": "Task resumed", "data": Task
 Body `{}`. PROGRESS → PENDING; minimal satu evidence FILE atau LINK. Tidak ada pemeriksaan semua checklist harus selesai pada handler saat ini.
 200: `{ "message": "Task submitted for approval", "data": TaskDetail }`.
 
-Semua aksi: error aturan umum, 400 pesan validasi, 409 `Invalid task status transition` jika status asal salah. Submit juga dapat menghasilkan 409 `Add at least one evidence before submitting`. Setelah PENDING, task terkunci untuk mutasi biasa; belum ada endpoint approve/reject.
+Semua aksi: error aturan umum, 400 pesan validasi, 409 `Invalid task status transition` jika status asal salah. Submit juga dapat menghasilkan 409 `Add at least one evidence before submitting`. Setelah PENDING, task terkunci untuk mutasi biasa; approve/reject tersedia di [Assessment & approval](task-ai-results.md).
 
 ## GET /api/tasks/:id/status-histories
 
 Tanpa body/query, akses seperti detail task. 200: `{ "data": TaskStatusHistory[] }`. Urutan mengikuti penambahan history (terlama dahulu). Error: 401 `Unauthorized`, 404 `Task not found`.
 
 Endpoint evidence dijelaskan terpisah di [Task evidence](task-evidences.md).
+
+Assessment, approval/rejection, dan retry dijelaskan di [Assessment & approval](task-ai-results.md). List task kini menyertakan initial_assessment, final_assessment, evidence_count, dan revision_reason; detail tetap memakai ai_results lengkap.

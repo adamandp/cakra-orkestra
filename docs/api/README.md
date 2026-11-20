@@ -2,16 +2,21 @@
 
 Kontrak berdasarkan implementasi MSW saat ini, bukan backend produksi. Base path: `/api`. Sumber: `src/mocks/handlers/`, schema di `src/features/`, dan tipe di `src/interface/`.
 
-| Path                     | Endpoint | Dokumentasi                        |
-| ------------------------ | -------: | ---------------------------------- |
-| `/auth`                  |        5 | [Auth](auth.md)                    |
-| `/users`                 |        6 | [Users](users.md)                  |
-| `/roles`                 |        2 | [Roles](roles.md)                  |
-| `/projects`              |        8 | [Projects](projects.md)            |
-| `/tasks`                 |       16 | [Tasks](tasks.md)                  |
-| `/tasks/:id/evidences`   |        6 | [Task evidence](task-evidences.md) |
-| `/mock-storage/evidence` |        1 | [Mock storage](mock-storage.md)    |
-| **Total**                |   **44** |                                    |
+| Path                               | Endpoint | Dokumentasi                                 |
+| ---------------------------------- | -------: | ------------------------------------------- |
+| `/auth`                            |        5 | [Auth](auth.md)                             |
+| `/users`                           |        6 | [Users](users.md)                           |
+| `/roles`                           |        2 | [Roles](roles.md)                           |
+| `/projects`                        |        8 | [Projects](projects.md)                     |
+| `/tasks`                           |       16 | [Tasks](tasks.md)                           |
+| `/tasks/:id/evidences`             |        6 | [Task evidence](task-evidences.md)          |
+| `/mock-storage/evidence`           |        1 | [Mock storage](mock-storage.md)             |
+| `/tasks/:id/ai-results` + approval |        5 | [Assessment & approval](task-ai-results.md) |
+| `/assessment-rubric`               |        1 | [Rubric](assessment-rubric.md)              |
+| `/changelogs`                      |        5 | [Changelogs](changelogs.md)                 |
+| `/scores`                          |        3 | [Scores](scores.md)                         |
+| `/dashboards`                      |        3 | [Dashboards](dashboards.md)                 |
+| **Total**                          |   **61** |                                             |
 
 Satu endpoint dihitung sebagai kombinasi HTTP method dan path. Semua path pada halaman modul sudah menyertakan `/api`.
 
@@ -30,7 +35,7 @@ Response list:
 { "data": { "items": [], "total": 0, "limit": 10, "offset": 0 } }
 ```
 
-`total` adalah jumlah setelah filter dan pembatasan akses, sebelum pagination. Tidak ada parameter sorting. Default limit tasks adalah 20; users/projects 10. Limit 1–100, offset integer ≥ 0.
+`total` adalah jumlah setelah filter dan pembatasan akses, sebelum pagination. Sorting ditetapkan handler pada modul tertentu (lihat changelogs dan scores); tidak ada parameter sorting. Default limit tasks/changelogs adalah 20; users/projects/scores 10. Limit 1–100, offset integer ≥ 0.
 
 Response error:
 
@@ -48,6 +53,6 @@ Response error:
 
 ## Batas implementasi
 
-MSW mengintersep request di browser, dengan data dan session simulasi di browser storage. Ini bukan server HTTP mandiri. Refresh cookie juga disimulasikan MSW. Workflow task dan upload evidence tersedia. Belum ada endpoint approval atau menjalankan evaluasi AI. File evidence disimpan di IndexedDB pada mock.
+MSW mengintersep request di browser, dengan data dan session simulasi di browser storage. Ini bukan server HTTP mandiri. Refresh cookie juga disimulasikan MSW. Workflow task dan upload evidence tersedia. Approval/rejection dan retry assessment tersedia. Evaluasi AI disimulasikan secara lazy saat membaca data task, tanpa LLM sungguhan. File evidence disimpan di IndexedDB pada mock.
 
 Error tambahan pada evidence/storage: 413 untuk file terlalu besar dan 500 untuk kegagalan penyimpanan.

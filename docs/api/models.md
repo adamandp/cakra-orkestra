@@ -1,10 +1,8 @@
 # Model response
 
-Bentuk data response ditulis sebagai TypeScript agar field, enum, array, dan nullability eksplisit. Ini adalah shape JSON, bukan kode yang perlu dijalankan. `number` berarti angka JSON; `string` berarti string JSON. ID berupa UUID, tanggal dan timestamp mengikuti konvensi di [index](README.md).
+Bentuk response menggunakan TypeScript untuk menunjukkan field, enum, array, pewarisan dan nullability. Ini shape JSON. ID adalah UUID, timestamp ISO 8601; tanggal YYYY-MM-DD. Model `Pick` hanya menyertakan field yang disebut. `TaskDetail` mewarisi Task; list task memakai TaskListItem dengan ringkasan assessment, evidence_count, dan revision_reason. Password/hash tidak dikembalikan.
 
-`User` mewarisi seluruh field `AuthUser`. `ProjectUser` berisi hanya `id`, `name`, `username`, `avatar_url`, dan `is_active` dari User. `TaskDetail` mewarisi seluruh field Task lalu menambahkan child collections. Field response di bawah wajib hadir, kecuali ditandai `?`.
-
-Response sukses yang menyebut `{ "data": User }` berarti objek User ditempatkan pada field data. Response mutasi dapat menambahkan `message` sesuai dokumentasi endpoint. Password/hash tidak pernah termasuk model publik.
+Model di bawah mengikuti `src/interface/`. Response endpoint membungkusnya dalam data, dengan message sesuai dokumentasi modul. Snapshot AI disimpan pada pembuatan assessment, bukan disinkronkan pada setiap edit task. AI mock dapat berubah PENDING/PROCESSING/COMPLETED/FAILED saat dibaca; lihat [perilaku assessment](task-ai-results.md).
 
 ## Auth
 
@@ -109,12 +107,26 @@ export interface TaskEvidence {
   updated_at: string;
 }
 
+export type TaskAIResultType = "INITIAL" | "FINAL";
+export type TaskAIResultStatus = "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED";
+export type TaskAIResultTier = "SPARK" | "PULSE" | "CORE" | "SURGE" | "APEX";
+
+export interface AssessmentRubricItem {
+  tier: TaskAIResultTier;
+  points: number;
+  description: string;
+}
+
+export interface RejectTaskInput {
+  reason: string;
+}
+
 export interface TaskAIResult {
   id: string;
   task_id: string;
-  type: "INITIAL" | "FINAL";
-  status: "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED";
-  tier: "SPARK" | "PULSE" | "CORE" | "SURGE" | "APEX" | null;
+  type: TaskAIResultType;
+  status: TaskAIResultStatus;
+  tier: TaskAIResultTier | null;
   points: number | null;
   reasoning: string | null;
   input_snapshot: {
@@ -154,6 +166,15 @@ export interface Task {
   checklist_completed: number;
 }
 
+export type TaskAssessmentSummary = Pick<TaskAIResult, "status" | "tier" | "points">;
+
+export interface TaskListItem extends Task {
+  initial_assessment: TaskAssessmentSummary;
+  final_assessment: TaskAssessmentSummary | null;
+  evidence_count: number;
+  revision_reason: string | null;
+}
+
 export interface TaskDetail extends Task {
   checklists: TaskChecklist[];
   status_histories: TaskStatusHistory[];
@@ -162,10 +183,113 @@ export interface TaskDetail extends Task {
 }
 ```
 
-## Kondisi mock saat ini
+## Changelog
 
-- Task baru: task_status OPEN; blocker_reason, approved_at, approved_by, dan deleted_at null.
-- TaskDetail baru: evidences kosong; ai_results.initial bertipe INITIAL dan status PENDING, final null. Field hasil evaluasi (tier, points, reasoning, model_name, error_message, evaluated_at) null. Mock tidak menjalankan evaluasi AI.
-- Status history awal memakai previous_status null, current_status OPEN, reason null, dan changed_by ID pembuat.
-- AI input_snapshot merekam input saat task dibuat; edit task/checklist tidak menyinkronkannya.
-- Evidence dan status history dapat berubah melalui endpoint yang terdokumentasi. Evaluasi AI dan approval belum memiliki endpoint.
+```ts
+export interface ChangelogItem {
+  id: string;
+  changelog_id: string;
+  description: string;
+}
+
+export interface Changelog {
+  id: string;
+  version: string;
+  description: string | null;
+  commit_url: string | null;
+  released_at: string;
+  created_at: string;
+  updated_at: string;
+  project_id: string;
+  created_by: string;
+  project: Pick<Project, "id" | "code" | "name" | "status">;
+  creator: ProjectUser;
+  changes: ChangelogItem[];
+}
+```
+
+## Score
+
+```ts
+export interface ScorePeriodParams {
+  month: string; // YYYY-MM, Asia/Jakarta
+}
+
+export interface ScoreHistoryParams extends ScorePeriodParams {
+  limit: number;
+  offset: number;
+}
+
+export interface ScoreSummary {
+  user_id: string;
+  month: string;
+  approved_points: number;
+  completed_tasks: number;
+  potential_points: number;
+  active_tasks: number;
+  has_running_assessments: boolean;
+}
+
+export interface ScoreHistoryItem {
+  task_id: string;
+  code: string;
+  title: string;
+  project_name: string;
+  tier: TaskAIResultTier;
+  points: number;
+  completed_at: string;
+}
+
+export interface ScoreHistoryResponse {
+  items: ScoreHistoryItem[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export interface UserScoreResponse {
+  summary: ScoreSummary;
+  history: ScoreHistoryResponse;
+}
+```
+
+## Dashboard
+
+```ts
+export interface MyFocusSummary {
+  active_tasks: number;
+  completed_tasks: number;
+  blocked_tasks: number;
+  pending_tasks: number;
+  waiting_approval_tasks: number;
+  final_assessment_tasks: number;
+  potential_points: number;
+  pending_points: number;
+  approved_points: number;
+  unestimated_tasks: number;
+}
+
+export interface TeamPulseSummary {
+  waiting_approval_tasks: number;
+  waiting_approval_points: number;
+  blocked_tasks: number;
+  completed_tasks: number;
+  total_tasks: number;
+  active_tasks: number;
+  active_projects: number;
+  completion_rate: number;
+  final_assessment_tasks: number;
+  failed_final_assessments: number;
+}
+
+export type WorkloadStatus = "AVAILABLE" | "BALANCED" | "HIGH_LOAD";
+
+export interface MemberWorkload {
+  member: ProjectUser;
+  active_tasks: TaskListItem[];
+  active_points: number;
+  approved_points: number;
+  unestimated_tasks: number;
+  status: WorkloadStatus;
+}
+```
